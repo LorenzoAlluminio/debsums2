@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: latin-1 -*-
 #
-# debsums2 - dpkg integrity check
+# debsums3 - dpkg integrity check
 # Copyright (C) 2014  Roland Wenzel
 #
 # This program is free software: you can redistribute it and/or modify
@@ -38,7 +38,7 @@ import zlib
 
 infodir = "/var/lib/dpkg/info"
 statusfile = "/var/lib/dpkg/status"
-logging.basicConfig(filename="debsums2.log", level=logging.DEBUG)
+logging.basicConfig(filename="debsums3.log", level=logging.DEBUG)
 urllib3_logger = logging.getLogger('urllib3')
 urllib3_logger.setLevel(logging.INFO)
 
@@ -622,7 +622,7 @@ def diff_filestored_fileactive(fDict, fileactive):
 
 
 def main():
-    logging.debug("Starting debsums2 -----------------------------")
+    logging.debug("Starting debsums3 -----------------------------")
     args = parse_command_line()
     if args.directory is not None or args.update == True or args.file != None or args.package != None:
         import apt
