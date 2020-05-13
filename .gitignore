@@ -1,4 +1,4 @@
-./__pycache__/*
-debsum3.log
+__pycache__/
+debsums3.log
 hashdb.json
 hashdb.json.bak
