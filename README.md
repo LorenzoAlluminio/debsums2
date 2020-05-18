@@ -71,7 +71,7 @@ Example 3: Package check, online
 --------------------------------
 
 ```
-$ python debsums2.py --online --package bash
+$ python3 debsums2.py --online --package bash
 
 Entries read from /var/lib/dpkg/info: 12345
 Total files in package bash: 55
