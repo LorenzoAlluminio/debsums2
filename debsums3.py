@@ -114,7 +114,31 @@ def parse_command_line():
         '--writedb',
         help='Write changes to the hashdb storage',
         action='store_true')
+    parser.add_argument(
+        '--version',
+        help='Show version information',
+        action='store_true')
     args = parser.parse_args()
+
+    if args.version:
+        print("debsums2 - dpkg integrity check")
+        print("Copyright (C) 2014  Roland Wenzel")
+        print("Version {}".format(__version__))
+        print("")
+        print("This program is free software: you can redistribute it and/or modify")
+        print("it under the terms of the GNU General Public License as published by")
+        print("the Free Software Foundation, either version 3 of the License, or")
+        print("(at your option) any later version.")
+        print("")
+        print("This program is distributed in the hope that it will be useful,")
+        print("but WITHOUT ANY WARRANTY; without even the implied warranty of")
+        print("MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the")
+        print("GNU General Public License for more details.")
+        print("")
+        print("You should have received a copy of the GNU General Public License")
+        print("along with this program.  If not, see <https://www.gnu.org/licenses/>.")
+        sys.exit(0)
+
     if not (args.directory or args.file or args.package) \
             and not (args.list_package or args.list_file or args.remove_file or args.remove_package) \
             and args.clean == False \
