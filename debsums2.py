@@ -115,6 +115,7 @@ def parse_command_line():
         help='Write changes to the hashdb storage',
         action='store_true')
     parser.add_argument(
+	'-V',
         '--version',
         help='Show version information',
         action='store_true')
