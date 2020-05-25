@@ -38,10 +38,6 @@ import zlib
 
 infodir = "/var/lib/dpkg/info"
 statusfile = "/var/lib/dpkg/status"
-logging.basicConfig(filename="debsums2.log", level=logging.DEBUG)
-urllib3_logger = logging.getLogger('urllib3')
-urllib3_logger.setLevel(logging.INFO)
-
 
 def parse_command_line():
     parser = argparse.ArgumentParser(
@@ -119,6 +115,12 @@ def parse_command_line():
         '--version',
         help='Show version information',
         action='store_true')
+    parser.add_argument(
+	'-P',
+        '--log-level',
+        help='Set log level (CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET)',
+	default="INFO")
+
     args = parser.parse_args()
 
     if args.version:
@@ -647,8 +649,13 @@ def diff_filestored_fileactive(fDict, fileactive):
 
 
 def main():
-    logging.debug("Starting debsums2 -----------------------------")
     args = parse_command_line()
+    # set the logging level based on the command line option
+    logging.basicConfig(filename="debsums2.log", format='%(asctime)s:%(levelname)s:%(message)s', \
+    level=getattr(logging, args.log_level.upper()))
+    logging.getLogger('urllib3').setLevel(getattr(logging, args.log_level.upper()))
+    logging.debug("Starting debsums2 -----------------------------")
+
     if args.directory is not None or args.update == True or args.file != None or args.package != None:
         import apt
         aptcache = apt.Cache()
