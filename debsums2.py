@@ -278,20 +278,23 @@ def fetch_md5sum_online(uriList, connection):
                     "Range": "bytes=%u-%u" %
                     (start, end)})
         if response.status in [200, 206]:
-            with tarfile.open(mode="r:*", fileobj=BytesIO(response.data)) as tar:
-                for t in tar.getmembers():
-                    if "md5sums" in t.name:
-                        md5sums = tar.extractfile(t).read().decode("utf-8").splitlines()
-                        if len(md5sums) > 0:
-                            logging.debug("{} md5sums extracted from {}".format(len(md5sums), uri))
-                        else:
-                            logging.warning("No md5sums found in " + uri)
-                        for m in md5sums:
-                            md5Dict = dict(
-                                list(zip(['md5_online', 'filename'], m.split())))
-                            md5Dict['filename'] = os.path.join(os.sep, md5Dict['filename'])
-                            md5sumsDictList.append(md5Dict)
-                        break
+            try:
+                with tarfile.open(mode="r:*", fileobj=BytesIO(response.data)) as tar:
+                    for t in tar.getmembers():
+                        if "md5sums" in t.name:
+                            md5sums = tar.extractfile(t).read().decode("utf-8").splitlines()
+                            if len(md5sums) > 0:
+                                logging.debug("{} md5sums extracted from {}".format(len(md5sums), uri))
+                            else:
+                                logging.warning("No md5sums found in " + uri)
+                            for m in md5sums:
+                                md5Dict = dict(
+                                    list(zip(['md5_online', 'filename'], m.split())))
+                                md5Dict['filename'] = os.path.join(os.sep, md5Dict['filename'])
+                                md5sumsDictList.append(md5Dict)
+                            break
+            except:
+                logging.info("failed to open package while processing " + uri)
         else:
             logging.warning("Failed to read " + uri)
     return md5sumsDictList
@@ -744,6 +747,14 @@ def main():
         print("Checksum of hashdb before read:         " + '\t' + md5sum_before)
         print("Entries read from hashdb:               " + '\t' + str(len(hdList)))
     print("Entries read from " + infodir + ":      " + '\t' + str(len(iList)))
+    print()
+    print("Result codes reminders:")
+    print("dot (.) / trustlevel=4                     " + '\t' + "verified online against debian package")
+    print("star (*) / trustlevel=3                    " + '\t' + "verified locally against debian package")
+    print("star (*) / trustlevel=3                    " + '\t' + "verified locally against debsums2 md5sum library, needs --writedb in a previous debsums2 run")
+    print("plus (+) / trustlevel=1                    " + '\t' + "not verified, probably new or changed file")
+    print("exclamation mark (!) / trustlevel=0        " + '\t' + "verification failed, see debsums2.log for info/warning")
+    print()
 
     if args.stats == True:
         get_stats(hdList)
