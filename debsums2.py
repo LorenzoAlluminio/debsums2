@@ -315,7 +315,7 @@ def fetch_pkg_online(fDict, connection):
     data = parse_header(
         response.data[8 + 60 + version['size'] + 60 + (((control['size'] + 1) // 2) * 2):])
     data_start = 8 + 60 + version['size'] + \
-        60 + (((control['size'] + 1) / 2) * 2) + 60
+        60 + (((control['size'] + 1) // 2) * 2) + 60
     data_end = data_start + data['size']
 
     try:
