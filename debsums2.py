@@ -190,7 +190,10 @@ def md5ChecksumHL(filename):
                 m.update(data)
             return m.hexdigest()
     except IOError:
-        logging.info(filename + ": Could not calculate md5sum.hashlib")
+        if(filename == "hashdb.json"):
+            logging.info("hashdb.json is not found. Could not calculate md5sum.hashlib")
+        else:
+            logging.info(filename + ": Could not calculate md5sum.hashlib")
         return None
 
 
