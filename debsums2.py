@@ -57,7 +57,7 @@ def parse_command_line():
     parser.add_argument(
         '-l',
         '--list-package',
-        help='List all entries for a given package. Append * to wildcard.')
+        help='List all entries in hashdb.json for a given package. Append * to wildcard.')
     parser.add_argument(
         '-L',
         '--list-file',
@@ -691,8 +691,7 @@ def main():
             extractList = extract(
                 hdList,
                 'package',
-                value=args.list_package[
-                    :-1],
+                value=args.list_package[:-1],
                 exactmatch=False)
         else:
             extractList = extract(
