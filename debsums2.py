@@ -27,14 +27,14 @@ import sys
 import argparse
 import simplejson
 import md5py
-import urllib.parse
-import http.client
+#import urllib.parse
+#import http.client
 import urllib3
-import string
+#import string
 import tarfile
 from io import BytesIO
 import logging
-import zlib
+#import zlib
 
 infodir = "/var/lib/dpkg/info"
 statusfile = "/var/lib/dpkg/status"
@@ -410,7 +410,7 @@ def dirscan(targetdir, fullscan):
 def get_stats(fDictList):
     # calculate some statistics for the hashdb
     trustlevelList = [0, 0, 0, 0, 0]
-    uSet = set([])
+    #uSet = set([])
 
     c_md5_py = 0
     c_md5_info = 0
