@@ -862,19 +862,26 @@ def main():
                 if hd['package'] == args.remove_package:
                     hdDelList.append(hd)
 
-    print()
     if md5sum_before:
+        print()
         print("Checksum of hashdb before read:         " + '\t' + md5sum_before)
         print("Entries read from hashdb:               " + '\t' + str(len(hdList)))
-    print("Entries read from " + infodir + ":      " + '\t' + str(len(iList)))
-    print()
-    print("Result codes reminders:")
-    print("dot (.) / trustlevel=4                     " + '\t' + "verified online against debian package")
-    print("star (*) / trustlevel=3                    " + '\t' + "verified locally against debian package")
-    print("star (*) / trustlevel=3                    " + '\t' + "verified locally against debsums2 md5sum library, needs --writedb in a previous debsums2 run")
-    print("plus (+) / trustlevel=1                    " + '\t' + "not verified, probably new or changed file")
-    print("exclamation mark (!) / trustlevel=0        " + '\t' + "verification failed, see debsums2.log for info/warning")
-    print()
+    if (args.directory or args.file or args.package) \
+            or (args.list_package or args.list_file or args.remove_file or args.remove_package) \
+            or args.clean == True \
+            or args.stats == True \
+            or args.verify_online == True \
+            or args.update == True:
+        print()
+        print("Entries read from " + infodir + ":      " + '\t' + str(len(iList)))
+        print()
+        print("Result codes reminders:")
+        print("dot (.) / trustlevel=4                     " + '\t' + "verified online against debian package")
+        print("star (*) / trustlevel=3                    " + '\t' + "verified locally against debian package")
+        print("star (*) / trustlevel=3                    " + '\t' + "verified locally against debsums2 md5sum library, needs --writedb in a previous debsums2 run")
+        print("plus (+) / trustlevel=1                    " + '\t' + "not verified, probably new or changed file")
+        print("exclamation mark (!) / trustlevel=0        " + '\t' + "verification failed, see debsums2.log for info/warning")
+        print()
 
     if args.stats == True:
         get_stats(hdList)
@@ -1031,6 +1038,9 @@ def main():
                 md5difference[0] +
                 ": Online md5sum differs to md5sum in hashdb")
 
+    if args.check_py == True:
+        check_py_libraries()
+
     if args.writedb == True:
         writeJSON(
             'hashdb.json',
@@ -1045,9 +1055,6 @@ def main():
         print("\n" + str(len(hdList)) + " entries written to hashdb")
     else:
         print("\n" + "No entries written to hashdb")
-
-    if args.check_py == True:
-        check_py_libraries()
 
 if __name__ == '__main__':
     main()
