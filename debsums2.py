@@ -32,9 +32,14 @@ import md5py
 import urllib3
 #import string
 import tarfile
-from io import BytesIO
+from io import BytesIO, StringIO
 import logging
 #import zlib
+import subprocess
+import zipfile
+import re
+import base64
+import tempfile
 
 infodir = "/var/lib/dpkg/info"
 statusfile = "/var/lib/dpkg/status"
@@ -111,12 +116,17 @@ def parse_command_line():
         help='Write changes to the hashdb storage',
         action='store_true')
     parser.add_argument(
-	'-V',
+	    '-V',
         '--version',
         help='Show version information',
         action='store_true')
     parser.add_argument(
-	'-P',
+	    '-C',
+        '--check-py',
+        help='check all the python libraries',
+        action='store_true')
+    parser.add_argument(
+	    '-P',
         '--log-level',
         help='Set log level (CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET)',
 	default="INFO")
@@ -147,6 +157,7 @@ def parse_command_line():
             and args.clean == False \
             and args.stats == False \
             and args.verify_online == False \
+            and args.check_py == False \
             and args.update == False:
         parser.print_help()
         sys.exit(1)
@@ -653,6 +664,115 @@ def diff_filestored_fileactive(fDict, fileactive):
                 ")")
     return kList
 
+def check_py_libraries():
+    #TODO change way to call pip3 and check also for pip2
+    py_packages_strings = subprocess.run(['pip3', 'list'], stdout=subprocess.PIPE).stdout.decode('utf-8').split("\n")[2:-1]
+    py_tmp_dir = tempfile.TemporaryDirectory(dir = "/tmp")
+
+    py_packages = []
+    for py_package in py_packages_strings:
+        py_parts = py_package.split()
+        py_packages.append(py_parts)
+
+    for py_package in py_packages:
+        py_show = subprocess.run(['pip3', 'show','-f',py_package[0]], stdout=subprocess.PIPE).stdout.decode('utf-8')
+
+        py_package_files = []
+        py_buf = StringIO(py_show)
+        for py_line in py_buf:
+            py_line_matches = re.match("Location:\s?(\S*).*",py_line)
+            if py_line_matches:
+                py_package_location = py_line_matches.group(1).replace("\n", "")
+            py_line_matches = re.match("^([^:]*)$",py_line)
+            if py_line_matches:
+                py_package_files.append(py_line_matches.group(1).replace("\n", "").strip())
+
+        py_package_version = py_package[0] + "==" + py_package[1]
+        if(py_package_files[0] != "Cannot locate installed-files.txt"):
+            print("Handling " + py_package_version)
+            py_filename = subprocess.run(['pip3', 'download', py_package_version, "-d", py_tmp_dir.name, "--no-cache-dir"], stdout=subprocess.PIPE).stdout.decode('utf-8').split("Saved ")[1].split("\n")[0]
+            if(py_filename.endswith(".whl")):
+                archive = zipfile.ZipFile(py_filename, "r")
+                # build dictionary of checksums
+                py_checksums = archive.read(py_package[0] + "-" + py_package[1] + ".dist-info/RECORD").decode("utf-8")
+                py_buf = StringIO(py_checksums)
+                py_checksums_dict = {}
+                for py_checksum in py_buf:
+                    py_matchs = re.match("(.*),sha256=(.*),.*",py_checksum)
+                    if py_matchs:
+                        py_checksums_dict[py_matchs.group(1)] = py_matchs.group(2)
+
+                archive.close()
+
+                # check each file in local with the dictionary
+                for py_package_file in py_package_files:
+                    if(py_package_file.endswith(".pyc")):
+                        print("skipped " + py_package_file)
+                        continue
+                    py_full_path = py_package_location + "/" + py_package_file
+                    if py_package_file in py_checksums_dict:
+                        sha256 = hashlib.sha256()
+                        with open(py_full_path, 'rb') as f:
+                            while True:
+                                data = f.read(8192)
+                                if not data:
+                                    break
+                                sha256.update(data)
+                        if py_checksums_dict[py_package_file] == base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=",""):
+                            print("Verified file: " + py_full_path)
+                        else:
+                            print("VERIFICATION FAILED: " + py_full_path)
+                    else:
+                        print("Local file not found in online checksums: " + py_full_path)
+
+            else:
+                # I assume that if it's not a whl file, it's an egg file
+                archive = tarfile.open(name=py_filename, mode='r')
+                archive.extractall(py_tmp_dir.name)
+
+                # build dictionary of checksums
+                py_egg_sources_file = archive.extractfile(py_package[0] + "-" + py_package[1] + "/" + py_package[0] + ".egg-info/SOURCES.txt")
+                py_egg_files = py_egg_sources_file.read().decode("utf-8")
+                py_buf = StringIO(py_egg_files)
+                py_checksums_dict = {}
+                for py_egg_file in py_buf:
+                    py_egg_file = py_egg_file.replace("\n","")
+                    sha256 = hashlib.sha256()
+                    with open(py_tmp_dir.name + "/" + py_package[0] + "-" + py_package[1] + "/"+ py_egg_file, 'rb') as f:
+                        while True:
+                            data = f.read(8192)
+                            if not data:
+                                break
+                            sha256.update(data)
+                    py_checksums_dict[py_egg_file] = base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=","")
+
+                archive.close()
+
+                # check each file in local with the dictionary
+                for py_package_file in py_package_files:
+                    if(py_package_file.endswith(".pyc")):
+                        print("skipped " + py_package_file)
+                        continue
+                    py_full_path = py_package_location + "/" + py_package_file
+                    if py_package_file in py_checksums_dict:
+                        sha256 = hashlib.sha256()
+                        with open(py_full_path, 'rb') as f:
+                            while True:
+                                data = f.read(8192)
+                                if not data:
+                                    break
+                                sha256.update(data)
+                        if py_checksums_dict[py_package_file] == base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=",""):
+                            print("Verified file: " + py_full_path)
+                        else:
+                            print("VERIFICATION FAILED: " + py_full_path)
+                    else:
+                        print("Local file not found in online checksums: " + py_full_path)
+        else:
+            print("Cannot find files for " + py_package_version)
+
+    py_tmp_dir.cleanup()
+
 
 def main():
     args = parse_command_line()
@@ -925,6 +1045,9 @@ def main():
         print("\n" + str(len(hdList)) + " entries written to hashdb")
     else:
         print("\n" + "No entries written to hashdb")
+
+    if args.check_py == True:
+        check_py_libraries()
 
 if __name__ == '__main__':
     main()
