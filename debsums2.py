@@ -27,14 +27,10 @@ import sys
 import argparse
 import simplejson
 import md5py
-#import urllib.parse
-#import http.client
 import urllib3
-#import string
 import tarfile
 from io import BytesIO, StringIO
 import logging
-#import zlib
 import subprocess
 import zipfile
 import re
@@ -121,15 +117,20 @@ def parse_command_line():
         help='Show version information',
         action='store_true')
     parser.add_argument(
-	    '-C',
         '--check-py',
+        '--cpy',
         help='check all the python libraries',
         action='store_true')
     parser.add_argument(
-	    '-P',
         '--log-level',
+        '--ll',
         help='Set log level (CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET)',
-	default="INFO")
+	    default="INFO")
+    parser.add_argument(
+        '--ignore-pyc',
+        '--ipyc',
+        help='Ignore pyc files when checking python libraries',
+        action='store_true')
 
     args = parser.parse_args()
 
@@ -664,9 +665,118 @@ def diff_filestored_fileactive(fDict, fileactive):
                 ")")
     return kList
 
-def check_py_libraries():
-    #TODO change way to call pip3 and check also for pip2
-    py_packages_strings = subprocess.run(['pip3', 'list'], stdout=subprocess.PIPE).stdout.decode('utf-8').split("\n")[2:-1]
+def handle_package(py_filename,py_package,py_package_files,py_package_location,py_tmp_dir,ignore_pyc,type):
+    # build the checksum dictionary if wheel
+    if(type == "whl"):
+        archive = zipfile.ZipFile(py_filename, "r")
+
+        record_file_path = [i for i in archive.namelist() if "RECORD" in i]
+
+        if(record_file_path):
+            record_file_path = record_file_path[0]
+            py_checksums = archive.read(record_file_path).decode("utf-8")
+            py_buf = StringIO(py_checksums)
+            py_checksums_dict = {}
+            for py_checksum in py_buf:
+                py_matchs = re.match("(.*),sha256=(.*),.*",py_checksum)
+                if py_matchs:
+                    py_checksums_dict[py_matchs.group(1)] = py_matchs.group(2)
+
+            archive.close()
+        else:
+            logging.info("Cannot find record file for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
+            print("Cannot find record file for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
+            return
+
+    # build the checksum dictionary if zip
+    if(type == "zip"):
+        archive = zipfile.ZipFile(py_filename, "r")
+        archive.extractall(py_tmp_dir.name)
+
+        sources_file_path = [i for i in archive.namelist() if "SOURCES.txt" in i]
+
+        if(sources_file_path):
+            sources_file_path = sources_file_path[0]
+            py_egg_files = archive.read(sources_file_path).decode("utf-8")
+            py_buf = StringIO(py_egg_files)
+            py_checksums_dict = {}
+            for py_egg_file in py_buf:
+                py_egg_file = py_egg_file.replace("\n","")
+                sha256 = hashlib.sha256()
+                try:
+                    with open(py_tmp_dir.name + "/" + py_package[0] + "-" + py_package[1] + "/"+ py_egg_file, 'rb') as f:
+                        while True:
+                            data = f.read(8192)
+                            if not data:
+                                break
+                            sha256.update(data)
+                    py_checksums_dict[py_egg_file] = base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=","")
+                except:
+                    logging.info("File not found: " + py_egg_file)
+                    print("File not found: " + py_egg_file)
+
+            archive.close()
+        else:
+            logging.info("Cannot find sources file for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
+            print("Cannot find sources file for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
+            return
+
+    # build the checksum dictionary if tar.gz
+    if(type == "tar.gz"):
+        archive = tarfile.open(name=py_filename, mode='r')
+        archive.extractall(py_tmp_dir.name)
+        sources_file_path = [i for i in archive.getnames() if "SOURCES.txt" in i]
+
+        if(sources_file_path):
+            sources_file_path = sources_file_path[0]
+            py_egg_sources_file = archive.extractfile(sources_file_path)
+            py_egg_files = py_egg_sources_file.read().decode("utf-8")
+            py_buf = StringIO(py_egg_files)
+            py_checksums_dict = {}
+            for py_egg_file in py_buf:
+                py_egg_file = py_egg_file.replace("\n","")
+                sha256 = hashlib.sha256()
+                try:
+                    with open(py_tmp_dir.name + "/" + py_package[0] + "-" + py_package[1] + "/"+ py_egg_file, 'rb') as f:
+                        while True:
+                            data = f.read(8192)
+                            if not data:
+                                break
+                            sha256.update(data)
+                    py_checksums_dict[py_egg_file] = base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=","")
+                except:
+                    logging.info("File not found: " + py_egg_file)
+                    print("File not found: " + py_egg_file)
+            archive.close()
+        else:
+            logging.info("Cannot find sources file for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
+            print("Cannot find sources file for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
+            return
+
+    # check each file in local with the dictionary
+    for py_package_file in py_package_files:
+        py_full_path = py_package_location + "/" + py_package_file
+        if(ignore_pyc == True and py_full_path.endswith(".pyc")):
+            continue
+        if py_package_file in py_checksums_dict:
+            sha256 = hashlib.sha256()
+            with open(py_full_path, 'rb') as f:
+                while True:
+                    data = f.read(8192)
+                    if not data:
+                        break
+                    sha256.update(data)
+            if py_checksums_dict[py_package_file] == base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=",""):
+                print(".", end='')
+            else:
+                print("!", end='')
+                logging.info(py_full_path + ": trustlevel=0, package: " + py_package[0] + "==" + py_package[1])
+        else:
+            print("+", end='')
+            logging.info(py_full_path + ": trustlevel=1, package: " + py_package[0] + "==" + py_package[1])
+
+def check_py_libraries(package_manager,ignore_pyc):
+    py_packages_strings = subprocess.run([package_manager, '--no-python-version-warning' , '--disable-pip-version-check' ,'list'], stdout=subprocess.PIPE).stdout.decode('utf-8').split("\n")[2:-1]
     py_tmp_dir = tempfile.TemporaryDirectory(dir = "/tmp")
 
     py_packages = []
@@ -675,7 +785,7 @@ def check_py_libraries():
         py_packages.append(py_parts)
 
     for py_package in py_packages:
-        py_show = subprocess.run(['pip3', 'show','-f',py_package[0]], stdout=subprocess.PIPE).stdout.decode('utf-8')
+        py_show = subprocess.run([package_manager, '--no-python-version-warning', '--disable-pip-version-check' , 'show','-f',py_package[0]], stdout=subprocess.PIPE).stdout.decode('utf-8')
 
         py_package_files = []
         py_buf = StringIO(py_show)
@@ -688,88 +798,33 @@ def check_py_libraries():
                 py_package_files.append(py_line_matches.group(1).replace("\n", "").strip())
 
         py_package_version = py_package[0] + "==" + py_package[1]
-        if(py_package_files[0] != "Cannot locate installed-files.txt"):
-            print("Handling " + py_package_version)
-            py_filename = subprocess.run(['pip3', 'download', py_package_version, "-d", py_tmp_dir.name, "--no-cache-dir"], stdout=subprocess.PIPE).stdout.decode('utf-8').split("Saved ")[1].split("\n")[0]
+        print("\nHandling " + py_package_version)
+        if(py_package_files[0] == "Cannot locate installed-files.txt"):
+            print("Cannot locate installed-files.txt, files on the local system are inferred")
+            logging.debug("Cannot locate installed-files.txt for " + py_package_version + ". Inferring files")
+            try:
+                py_package_files = dirscan(py_package_location+"/"+py_package[0],True)
+                py_package_files += dirscan(py_package_location+"/"+py_package[0]+"-"+py_package[1]+".egg-info",True)
+                py_offset = len(py_package_location) + 1
+                py_package_files = [py_temp[py_offset:] for py_temp in py_package_files]
+            except:
+                print("Cannot infer files, skipping verification")
+                logging.debug("Cannot infer file for " + py_package_version + ". Skipping verification")
+                continue
+
+        result = subprocess.run([package_manager, '--no-python-version-warning' , '--disable-pip-version-check' , 'download', py_package_version, "-d", py_tmp_dir.name, "--no-cache-dir",'--no-deps'], stdout=subprocess.PIPE, stderr=subprocess.PIPE )
+        if(result.stderr.decode('utf-8')==""):
+            py_filename = result.stdout.decode('utf-8').split("Saved ")[1].split("\n")[0]
             if(py_filename.endswith(".whl")):
-                archive = zipfile.ZipFile(py_filename, "r")
-                # build dictionary of checksums
-                py_checksums = archive.read(py_package[0] + "-" + py_package[1] + ".dist-info/RECORD").decode("utf-8")
-                py_buf = StringIO(py_checksums)
-                py_checksums_dict = {}
-                for py_checksum in py_buf:
-                    py_matchs = re.match("(.*),sha256=(.*),.*",py_checksum)
-                    if py_matchs:
-                        py_checksums_dict[py_matchs.group(1)] = py_matchs.group(2)
-
-                archive.close()
-
-                # check each file in local with the dictionary
-                for py_package_file in py_package_files:
-                    if(py_package_file.endswith(".pyc")):
-                        print("skipped " + py_package_file)
-                        continue
-                    py_full_path = py_package_location + "/" + py_package_file
-                    if py_package_file in py_checksums_dict:
-                        sha256 = hashlib.sha256()
-                        with open(py_full_path, 'rb') as f:
-                            while True:
-                                data = f.read(8192)
-                                if not data:
-                                    break
-                                sha256.update(data)
-                        if py_checksums_dict[py_package_file] == base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=",""):
-                            print("Verified file: " + py_full_path)
-                        else:
-                            print("VERIFICATION FAILED: " + py_full_path)
-                    else:
-                        print("Local file not found in online checksums: " + py_full_path)
-
-            else:
-                # I assume that if it's not a whl file, it's an egg file
-                archive = tarfile.open(name=py_filename, mode='r')
-                archive.extractall(py_tmp_dir.name)
-
-                # build dictionary of checksums
-                py_egg_sources_file = archive.extractfile(py_package[0] + "-" + py_package[1] + "/" + py_package[0] + ".egg-info/SOURCES.txt")
-                py_egg_files = py_egg_sources_file.read().decode("utf-8")
-                py_buf = StringIO(py_egg_files)
-                py_checksums_dict = {}
-                for py_egg_file in py_buf:
-                    py_egg_file = py_egg_file.replace("\n","")
-                    sha256 = hashlib.sha256()
-                    with open(py_tmp_dir.name + "/" + py_package[0] + "-" + py_package[1] + "/"+ py_egg_file, 'rb') as f:
-                        while True:
-                            data = f.read(8192)
-                            if not data:
-                                break
-                            sha256.update(data)
-                    py_checksums_dict[py_egg_file] = base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=","")
-
-                archive.close()
-
-                # check each file in local with the dictionary
-                for py_package_file in py_package_files:
-                    if(py_package_file.endswith(".pyc")):
-                        print("skipped " + py_package_file)
-                        continue
-                    py_full_path = py_package_location + "/" + py_package_file
-                    if py_package_file in py_checksums_dict:
-                        sha256 = hashlib.sha256()
-                        with open(py_full_path, 'rb') as f:
-                            while True:
-                                data = f.read(8192)
-                                if not data:
-                                    break
-                                sha256.update(data)
-                        if py_checksums_dict[py_package_file] == base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=",""):
-                            print("Verified file: " + py_full_path)
-                        else:
-                            print("VERIFICATION FAILED: " + py_full_path)
-                    else:
-                        print("Local file not found in online checksums: " + py_full_path)
+                handle_package(py_filename,py_package,py_package_files,py_package_location,py_tmp_dir,ignore_pyc,"whl")
+            if(py_filename.endswith(".tar.gz")):
+                handle_package(py_filename,py_package,py_package_files,py_package_location,py_tmp_dir,ignore_pyc,"tar.gz")
+            if(py_filename.endswith(".zip")):
+                handle_package(py_filename,py_package,py_package_files,py_package_location,py_tmp_dir,ignore_pyc,"zip")
+            print()
         else:
-            print("Cannot find files for " + py_package_version)
+            logging.info("Cannot download package from pipy for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
+            print("Cannot download package from pipy for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
 
     py_tmp_dir.cleanup()
 
@@ -800,14 +855,21 @@ def main():
                     os.sep,
                     os.path.normpath(
                         hd['filename'])))
-    hdDelList = []
-    hdDupList = []
-    # FIXME:
-    # iList = sorted(get_dpkginfo(infodir))
-    iList = get_dpkginfo(infodir)
-    fsList = []
-    changes = 0
-    totalchanges = 0
+
+    if (args.directory or args.file or args.package) \
+            or (args.list_package or args.list_file or args.remove_file or args.remove_package) \
+            or args.clean == True \
+            or args.stats == True \
+            or args.verify_online == True \
+            or args.update == True:
+        hdDelList = []
+        hdDupList = []
+        # FIXME:
+        # iList = sorted(get_dpkginfo(infodir))
+        iList = get_dpkginfo(infodir)
+        fsList = []
+        changes = 0
+        totalchanges = 0
 
     if args.list_package is not None:
         if args.list_package[-1] == "*":
@@ -878,7 +940,7 @@ def main():
         print("Result codes reminders:")
         print("dot (.) / trustlevel=4                     " + '\t' + "verified online against debian package")
         print("star (*) / trustlevel=3                    " + '\t' + "verified locally against debian package")
-        print("star (*) / trustlevel=3                    " + '\t' + "verified locally against debsums2 md5sum library, needs --writedb in a previous debsums2 run")
+        print("star (-) / trustlevel=2                    " + '\t' + "verified locally against debsums2 md5sum library, needs --writedb in a previous debsums2 run")
         print("plus (+) / trustlevel=1                    " + '\t' + "not verified, probably new or changed file")
         print("exclamation mark (!) / trustlevel=0        " + '\t' + "verification failed, see debsums2.log for info/warning")
         print()
@@ -934,91 +996,97 @@ def main():
         print("Number of new files in package " + args.directory + '\t' + str(len(fnewSet)))
     exit
 
-    if len(hdDelList) > 0:
-        for hd in hdDelList:
-            hdList.remove(hd)
-            logging.debug(hd['filename'] + ": File removed from hashdb.")
-            changes += 1
-        if not len(fsList) and not len(hdDupList):
-            print("\n" + str(changes) + " changes to hashdb.")
-
-    if len(hdDupList) > 0:
-        for hd in hdDupList:
-            if hd in hdList:
+    if (args.directory or args.file or args.package) \
+            or (args.list_package or args.list_file or args.remove_file or args.remove_package) \
+            or args.clean == True \
+            or args.stats == True \
+            or args.verify_online == True \
+            or args.update == True:
+        if len(hdDelList) > 0:
+            for hd in hdDelList:
                 hdList.remove(hd)
-            logging.debug(hd['filename'] + ": Duplicate removed from hashdb.")
-            changes += 1
-        if not len(fsList):
-            print("\n" + str(changes) + " changes to hashdb.")
-    if len(fsList) > 0:
-        md5onlineList = []
-        md5onlineSet = set([])
+                logging.debug(hd['filename'] + ": File removed from hashdb.")
+                changes += 1
+            if not len(fsList) and not len(hdDupList):
+                print("\n" + str(changes) + " changes to hashdb.")
 
-        for f in fsList:
-            sys.stdout.flush()
-            trustlevel = 0
-            if not f in fnewSet:
-                filestored = next(
-                    (hd for hd in hdList if hd['filename'] == f),
-                    None)
-                trustlevel = get_trustlevel(filestored)
-                if not isvalidkey(filestored, 'md5_hl') or filestored['md5_hl'] != md5ChecksumHL(filestored['filename']):
-                    trustlevel = 0
-            if f in fnewSet or trustlevel < 4 or args.update or args.package or args.file:
-                fileactive = {'filename': f}
-                fileactive.update(
-                    next(
-                        (i for i in iList if i['filename'] == fileactive['filename']), {
-                            'md5_info': None, 'package': None}))
-                fileactive['uri'] = get_uri(aptcache, fileactive['package'])
-                fileactive['md5_hl'] = md5ChecksumHL(fileactive['filename'])
-                if args.insane == True:
-                    fileactive['md5_py'] = md5ChecksumPY(
-                        fileactive['filename'])
-                if args.online == True or args.online_full == True:
-                    if isvalidkey(fileactive, 'uri', 'NotNone'):
-                        if not fileactive['uri'] in md5onlineSet:
-                            if args.online_full == True:
-                                md5onlineList.extend(
-                                    fetch_pkg_online(
-                                        fileactive,
-                                        connection))
-                            else:
-                                md5onlineList.extend(
-                                    fetch_md5sum_online([fileactive['uri']], connection))
-                            md5onlineSet.add(fileactive['uri'])
-                        fileactive.update(
-                            next(
-                                (m for m in md5onlineList if m['filename'] == fileactive['filename']), {
-                                    'md5_online': None}))
-                trustlevel = get_trustlevel(fileactive)
-                if f in fnewSet:
-                    hdList.append(fileactive)
-                    changes += 1
-                    if trustlevel == 2:
-                        # new file, no matching to stored md5sum possible
-                        trustlevel = 1
-                else:
-                    diffList = diff_filestored_fileactive(
-                        filestored,
-                        fileactive)
-                    for k in diffList:
-                        filestored[k] = fileactive[k]
+        if len(hdDupList) > 0:
+            for hd in hdDupList:
+                if hd in hdList:
+                    hdList.remove(hd)
+                logging.debug(hd['filename'] + ": Duplicate removed from hashdb.")
+                changes += 1
+            if not len(fsList):
+                print("\n" + str(changes) + " changes to hashdb.")
+        if len(fsList) > 0:
+            md5onlineList = []
+            md5onlineSet = set([])
+
+            for f in fsList:
+                sys.stdout.flush()
+                trustlevel = 0
+                if not f in fnewSet:
+                    filestored = next(
+                        (hd for hd in hdList if hd['filename'] == f),
+                        None)
+                    trustlevel = get_trustlevel(filestored)
+                    if not isvalidkey(filestored, 'md5_hl') or filestored['md5_hl'] != md5ChecksumHL(filestored['filename']):
+                        trustlevel = 0
+                if f in fnewSet or trustlevel < 4 or args.update or args.package or args.file:
+                    fileactive = {'filename': f}
+                    fileactive.update(
+                        next(
+                            (i for i in iList if i['filename'] == fileactive['filename']), {
+                                'md5_info': None, 'package': None}))
+                    fileactive['uri'] = get_uri(aptcache, fileactive['package'])
+                    fileactive['md5_hl'] = md5ChecksumHL(fileactive['filename'])
+                    if args.insane == True:
+                        fileactive['md5_py'] = md5ChecksumPY(
+                            fileactive['filename'])
+                    if args.online == True or args.online_full == True:
+                        if isvalidkey(fileactive, 'uri', 'NotNone'):
+                            if not fileactive['uri'] in md5onlineSet:
+                                if args.online_full == True:
+                                    md5onlineList.extend(
+                                        fetch_pkg_online(
+                                            fileactive,
+                                            connection))
+                                else:
+                                    md5onlineList.extend(
+                                        fetch_md5sum_online([fileactive['uri']], connection))
+                                md5onlineSet.add(fileactive['uri'])
+                            fileactive.update(
+                                next(
+                                    (m for m in md5onlineList if m['filename'] == fileactive['filename']), {
+                                        'md5_online': None}))
+                    trustlevel = get_trustlevel(fileactive)
+                    if f in fnewSet:
+                        hdList.append(fileactive)
                         changes += 1
-                        if trustlevel == 2 and k in ['md5_hl', 'md5_py', 'md5_info', 'md5_online']:
-                            # changed file, no matching to stored md5sum
-                            # possible
+                        if trustlevel == 2:
+                            # new file, no matching to stored md5sum possible
                             trustlevel = 1
-            else:
-                fileactive = filestored
-            sys.stdout.write(eval_trustlevel(fileactive, trustlevel))
-            if changes == 250 and args.writedb == True:
-                writeJSON('/tmp/hashdb.json', hdList)
-                logging.debug(
-                    "hashdb backup saved to /tmp with " + str(len(hdList)) + " entries")
-                totalchanges = totalchanges + changes
-                changes = 0
-        print("\n" + str(totalchanges + changes) + " changes to hashdb.")
+                    else:
+                        diffList = diff_filestored_fileactive(
+                            filestored,
+                            fileactive)
+                        for k in diffList:
+                            filestored[k] = fileactive[k]
+                            changes += 1
+                            if trustlevel == 2 and k in ['md5_hl', 'md5_py', 'md5_info', 'md5_online']:
+                                # changed file, no matching to stored md5sum
+                                # possible
+                                trustlevel = 1
+                else:
+                    fileactive = filestored
+                sys.stdout.write(eval_trustlevel(fileactive, trustlevel))
+                if changes == 250 and args.writedb == True:
+                    writeJSON('/tmp/hashdb.json', hdList)
+                    logging.debug(
+                        "hashdb backup saved to /tmp with " + str(len(hdList)) + " entries")
+                    totalchanges = totalchanges + changes
+                    changes = 0
+            print("\n" + str(totalchanges + changes) + " changes to hashdb.")
 
     if args.verify_online == True:
         uriSet = getset(hdList, 'uri')
@@ -1039,7 +1107,12 @@ def main():
                 ": Online md5sum differs to md5sum in hashdb")
 
     if args.check_py == True:
-        check_py_libraries()
+        if(os.system("command -v pip >/dev/null 2>&1") == 0):
+            print("\nChecking pip libraries -----")
+            check_py_libraries("pip",args.ignore_pyc)
+        if(os.system("command -v pip3 >/dev/null 2>&1") == 0):
+            print("\nChecking pip3 libraries -----")
+            check_py_libraries("pip3",args.ignore_pyc)
 
     if args.writedb == True:
         writeJSON(
