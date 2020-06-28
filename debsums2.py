@@ -42,10 +42,9 @@ infodir = "/var/lib/dpkg/info"
 statusfile = "/var/lib/dpkg/status"
 
 py_total_files = 0
-py_verified_files = 0
-py_not_verified_files = 0
-py_verification_failed_files = 0
-py_file_exceptions = 0
+py_trustlevel_counters = [0,0,0,0,0]
+apt_trustlevel_counters = [0,0,0,0,0]
+apt_total_files = 0
 
 def parse_command_line():
     parser = argparse.ArgumentParser(
@@ -66,6 +65,7 @@ def parse_command_line():
     parser.add_argument(
         '-p',
         '--package',
+        nargs='+',
         help='Target package for the integrity check.')
     parser.add_argument(
         '--all-packages',
@@ -653,6 +653,9 @@ def get_trustlevel(fDictList):
 
 
 def eval_trustlevel(fileactive, trustlevel):
+    global apt_trustlevel_counters
+    global apt_total_files
+
     if trustlevel < 4:
         if isvalidkey(fileactive, 'filename', 'NotNone'):
             if isvalidkey(fileactive, 'package', 'NotNone'):
@@ -668,6 +671,8 @@ def eval_trustlevel(fileactive, trustlevel):
                     ": trustlevel=" +
                     str(trustlevel) +
                     ", package: unknown")
+    apt_total_files += 1
+    apt_trustlevel_counters[trustlevel] += 1
     if trustlevel == 4:  # md5sum online verified
         return '.'
     elif trustlevel == 3:  # md5sum from package list
@@ -702,10 +707,7 @@ def diff_filestored_fileactive(fDict, fileactive):
 
 def handle_downloaded_package(package_manager,py_filename,py_package,py_package_files,py_package_location,py_tmp_dir,ignore_pyc,type):
     global py_total_files
-    global py_verified_files
-    global py_not_verified_files
-    global py_verification_failed_files
-    global py_file_exceptions
+    global py_trustlevel_counters
 
     # build the checksum dictionary if whl or zip
     if(type == "zip" or type =="whl"):
@@ -772,18 +774,18 @@ def handle_downloaded_package(package_manager,py_filename,py_package,py_package_
                             break
                         sha256.update(data)
                 if py_checksums_dict[py_package_file] == base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=",""):
-                    print(".", end='', flush=True)
-                    py_verified_files += 1
+                    sys.stdout.write(".")
+                    py_trustlevel_counters[4] += 1
                 else:
-                    print("!", end='', flush=True)
+                    sys.stdout.write("!")
                     logging.info(package_manager+":"+py_full_path + ": trustlevel=0, package: " + py_package[0] + "==" + py_package[1])
-                    py_verification_failed_files += 1
+                    py_trustlevel_counters[0] += 1
             except:
                 logging.debug(package_manager+":file " + py_package_file + " found in output of "+ package_manager +" show -f " + py_package[0] + ", but not found on the local system")
-                py_file_exceptions += 1
+                py_total_files -= 1
         else:
-            print("+", end='',flush=True)
-            py_not_verified_files += 1
+            sys.stdout.write("+")
+            py_trustlevel_counters[1] += 1
             logging.info(package_manager+":"+py_full_path + ": trustlevel=1, package: " + py_package[0] + "==" + py_package[1])
 
 def handle_package(package_manager,ignore_pyc,py_tmp_dir,py_package):
@@ -880,6 +882,7 @@ def main():
     global py_verified_files
     global py_not_verified_files
     global py_verification_failed_files
+    global apt_trustlevel_counters
 
     args = parse_command_line()
     # set the logging level based on the command line option
@@ -898,6 +901,15 @@ def main():
     hdList = readJSON('hashdb.json')
     if args.writedb == True:
         writeJSON('hashdb.json.bak', hdList)
+
+    print()
+    print("Result codes reminders:")
+    print("dot (.) / trustlevel=4                     " + '\t' + "verified online against debian package")
+    print("star (*) / trustlevel=3                    " + '\t' + "verified locally against debian package")
+    print("star (-) / trustlevel=2                    " + '\t' + "verified locally against debsums2 md5sum library, needs --writedb in a previous debsums2 run")
+    print("plus (+) / trustlevel=1                    " + '\t' + "not verified, probably new or changed file")
+    print("exclamation mark (!) / trustlevel=0        " + '\t' + "verification failed, see debsums2.log for info/warning")
+    print()
 
     if (args.directory or args.file or args.package) \
             or (args.list_package or args.list_file or args.remove_file or args.remove_package) \
@@ -987,16 +999,9 @@ def main():
             or args.verify_online == True \
             or args.all_packages == True \
             or args.update == True:
+        print("START WORKING ON APT PACKAGES ------------------------------------")
         print()
         print("Entries read from " + infodir + ":      " + '\t' + str(len(iList)))
-        print()
-        print("Result codes reminders:")
-        print("dot (.) / trustlevel=4                     " + '\t' + "verified online against debian package")
-        print("star (*) / trustlevel=3                    " + '\t' + "verified locally against debian package")
-        print("star (-) / trustlevel=2                    " + '\t' + "verified locally against debsums2 md5sum library, needs --writedb in a previous debsums2 run")
-        print("plus (+) / trustlevel=1                    " + '\t' + "not verified, probably new or changed file")
-        print("exclamation mark (!) / trustlevel=0        " + '\t' + "verification failed, see debsums2.log for info/warning")
-        print()
 
     if args.stats == True:
         get_stats(hdList)
@@ -1035,12 +1040,13 @@ def main():
         fnewSet = set(fsList).difference(getset(hdList, 'filename'))
 
     if args.package is not None:
-        for i in extract(iList, 'package', value=args.package, exactmatch=True):
-            if os.path.exists(i['filename']):
-                fsList.append(i['filename'])
-        print("Total files in package " + args.package + '\t' + str(len(fsList)))
-        fnewSet = set(fsList).difference(getset(hdList, 'filename'))
-        print("Number of new files in package " + args.package + '\t' + str(len(fnewSet)))
+        for current_package in args.package:
+            for i in extract(iList, 'package', value=current_package, exactmatch=True):
+                if os.path.exists(i['filename']):
+                    fsList.append(i['filename'])
+            print("Total files in package " + current_package + '\t' + str(len(fsList)))
+            fnewSet = set(fsList).difference(getset(hdList, 'filename'))
+            print("Number of new files in package " + current_package + '\t' + str(len(fnewSet)))
 
     if args.all_packages == True:
         for current_package in aptcache.keys():
@@ -1150,6 +1156,10 @@ def main():
                     totalchanges = totalchanges + changes
                     changes = 0
             print("\n" + str(totalchanges + changes) + " changes to hashdb.")
+        print("\nSTATISTICS ON APT PACKAGES ---------")
+        print("Total number of files analyzed: " + str(apt_total_files))
+        for i in range(len(apt_trustlevel_counters)-1,-1,-1):
+            print("Number of files with trustlevel = " + str(i) + " : " + str(apt_trustlevel_counters[i]))
 
     if args.verify_online == True:
         uriSet = getset(hdList, 'uri')
@@ -1171,12 +1181,7 @@ def main():
 
     if(args.check_all_py == True or args.check_py is not None):
         print()
-        print("Result codes reminders:")
-        print("dot (.) / trustlevel=4                     " + '\t' + "verified online against pipy package")
-        #print("star (*) / trustlevel=3                    " + '\t' + "verified locally against pipy package")
-        #print("star (-) / trustlevel=2                    " + '\t' + "verified locally against debsums2 md5sum library, needs --writedb in a previous debsums2 run")
-        print("plus (+) / trustlevel=1                    " + '\t' + "not verified, probably new or changed file")
-        print("exclamation mark (!) / trustlevel=0        " + '\t' + "verification failed, see debsums2.log for info/warning")
+        print("START WORKING ON PY PACKAGES ------------------------------------")
         print()
 
     if args.check_all_py == True or args.check_py is not None:
@@ -1186,11 +1191,10 @@ def main():
                 check_py_libraries(py_package_manager,args.ignore_pyc,args.check_py)
                 print("\n")
 
+        print("\nSTATISTICS ON PY PACKAGES ---------")
         print("Total number of files analyzed: " + str(py_total_files))
-        print("Total number of successful verifications: " + str(py_verified_files))
-        print("Total number of not verified files: " + str(py_not_verified_files))
-        print("Total number of failed verifications: " + str(py_verification_failed_files))
-        print("Total number of files that triggered an exception: " + str(py_file_exceptions))
+        for i in range(len(py_trustlevel_counters)-1,-1,-1):
+            print("Number of files with trustlevel = " + str(i) + " : " + str(py_trustlevel_counters[i]))
 
     if args.writedb == True:
         writeJSON(
