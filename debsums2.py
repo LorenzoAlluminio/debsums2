@@ -147,7 +147,7 @@ def parse_command_line():
         '--py-package-managers',
         '--ppm',
         nargs='+',
-        help='set the package managers to use to check(pip3,pip2,pip ...)',
+        help='set the package managers to use to check',
         default=["pip2","pip3"])
     parser.add_argument(
         '--ignore-pyc',
@@ -162,10 +162,10 @@ def parse_command_line():
 
     args = parser.parse_args()
 
-    if args.full_system_check:
+    if args.full_system_check == True:
         args.all_packages = True
         args.check_all_py = True
-        
+
     if args.version:
         print("debsums2 - dpkg integrity check")
         print("Copyright (C) 2014  Roland Wenzel")
@@ -185,13 +185,14 @@ def parse_command_line():
         print("along with this program.  If not, see <https://www.gnu.org/licenses/>.")
         sys.exit(0)
 
-    if not (args.directory or args.file or args.package or args.all_packages) \
+    if not (args.directory or args.file or args.package) \
             and not (args.list_package or args.list_file or args.remove_file or args.remove_package) \
             and args.clean == False \
             and args.stats == False \
             and args.verify_online == False \
-            and args.check_py == False \
+            and args.check_py is None \
             and args.check_all_py == False \
+            and args.all_packages == False \
             and args.update == False:
         parser.print_help()
         sys.exit(1)
@@ -886,7 +887,7 @@ def main():
     logging.getLogger('urllib3').setLevel(getattr(logging, args.log_level.upper()))
     logging.debug("Starting debsums2 -----------------------------")
 
-    if args.directory is not None or args.update == True or args.file != None or args.package != None or args.all_packages != None:
+    if args.directory is not None or args.update == True or args.file != None or args.package != None or args.all_packages == True:
         import apt
         aptcache = apt.Cache()
     if args.online or args.online_full or args.verify_online:
@@ -897,11 +898,12 @@ def main():
     if args.writedb == True:
         writeJSON('hashdb.json.bak', hdList)
 
-    if (args.directory or args.file or args.package or args.all_packages) \
+    if (args.directory or args.file or args.package) \
             or (args.list_package or args.list_file or args.remove_file or args.remove_package) \
             or args.clean == True \
             or args.stats == True \
             or args.verify_online == True \
+            or args.all_packages == True \
             or args.update == True:
         for hd in hdList:
             if isvalidkey(hd, 'filename') and isinstance(hd['filename'], str):
@@ -977,11 +979,12 @@ def main():
         print()
         print("Checksum of hashdb before read:         " + '\t' + md5sum_before)
         print("Entries read from hashdb:               " + '\t' + str(len(hdList)))
-    if (args.directory or args.file or args.package or args.all_packages) \
+    if (args.directory or args.file or args.package) \
             or (args.list_package or args.list_file or args.remove_file or args.remove_package) \
             or args.clean == True \
             or args.stats == True \
             or args.verify_online == True \
+            or args.all_packages == True \
             or args.update == True:
         print()
         print("Entries read from " + infodir + ":      " + '\t' + str(len(iList)))
@@ -1038,7 +1041,7 @@ def main():
         fnewSet = set(fsList).difference(getset(hdList, 'filename'))
         print("Number of new files in package " + args.package + '\t' + str(len(fnewSet)))
 
-    if args.all_packages is not None:
+    if args.all_packages == True:
         for current_package in aptcache.keys():
             for i in extract(iList, 'package', value=current_package, exactmatch=True):
                 if os.path.exists(i['filename']):
@@ -1054,11 +1057,12 @@ def main():
         print("Number of new files in package " + args.directory + '\t' + str(len(fnewSet)))
     exit
 
-    if (args.directory or args.file or args.package or args.all_packages) \
+    if (args.directory or args.file or args.package) \
             or (args.list_package or args.list_file or args.remove_file or args.remove_package) \
             or args.clean == True \
             or args.stats == True \
             or args.verify_online == True \
+            or args.all_packages == True \
             or args.update == True:
         if len(hdDelList) > 0:
             for hd in hdDelList:
@@ -1164,7 +1168,7 @@ def main():
                 md5difference[0] +
                 ": Online md5sum differs to md5sum in hashdb")
 
-    if(args.check_all_py or args.check_py):
+    if(args.check_all_py == True or args.check_py is not None):
         print()
         print("Result codes reminders:")
         print("dot (.) / trustlevel=4                     " + '\t' + "verified online against pipy package")
