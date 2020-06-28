@@ -3,5 +3,4 @@ debsums2.log
 hashdb.json
 hashdb.json.bak
 Makefile
-Dockerfile
 Docker_commands
