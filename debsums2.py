@@ -36,9 +36,15 @@ import zipfile
 import re
 import base64
 import tempfile
+import glob
 
 infodir = "/var/lib/dpkg/info"
 statusfile = "/var/lib/dpkg/status"
+
+py_total_files = 0
+py_verified_files = 0
+py_not_verified_files = 0
+py_verification_failed_files = 0
 
 def parse_command_line():
     parser = argparse.ArgumentParser(
@@ -117,20 +123,25 @@ def parse_command_line():
         help='Show version information',
         action='store_true')
     parser.add_argument(
+        '--check-all-py',
+        '--capy',
+        help='check all the python libraries',
+        action='store_true')
+    parser.add_argument(
         '--check-py',
         '--cpy',
-        help='check all the python libraries',
+        nargs='+',
+        help='check a list of python library')
+    parser.add_argument(
+        '--ignore-pyc',
+        '--ipyc',
+        help='Ignore pyc files when checking python libraries',
         action='store_true')
     parser.add_argument(
         '--log-level',
         '--ll',
         help='Set log level (CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET)',
 	    default="INFO")
-    parser.add_argument(
-        '--ignore-pyc',
-        '--ipyc',
-        help='Ignore pyc files when checking python libraries',
-        action='store_true')
 
     args = parser.parse_args()
 
@@ -665,171 +676,176 @@ def diff_filestored_fileactive(fDict, fileactive):
                 ")")
     return kList
 
-def handle_package(py_filename,py_package,py_package_files,py_package_location,py_tmp_dir,ignore_pyc,type):
-    # build the checksum dictionary if wheel
-    if(type == "whl"):
-        archive = zipfile.ZipFile(py_filename, "r")
+def handle_downloaded_package(package_manager,py_filename,py_package,py_package_files,py_package_location,py_tmp_dir,ignore_pyc,type):
+    global py_total_files
+    global py_verified_files
+    global py_not_verified_files
+    global py_verification_failed_files
 
-        record_file_path = [i for i in archive.namelist() if "RECORD" in i]
-
-        if(record_file_path):
-            record_file_path = record_file_path[0]
-            py_checksums = archive.read(record_file_path).decode("utf-8")
-            py_buf = StringIO(py_checksums)
-            py_checksums_dict = {}
-            for py_checksum in py_buf:
-                py_matchs = re.match("(.*),sha256=(.*),.*",py_checksum)
-                if py_matchs:
-                    py_checksums_dict[py_matchs.group(1)] = py_matchs.group(2)
-
-            archive.close()
-        else:
-            logging.info("Cannot find record file for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
-            print("Cannot find record file for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
-            return
-
-    # build the checksum dictionary if zip
-    if(type == "zip"):
+    # build the checksum dictionary if whl or zip
+    if(type == "zip" or type =="whl"):
         archive = zipfile.ZipFile(py_filename, "r")
         archive.extractall(py_tmp_dir.name)
 
-        sources_file_path = [i for i in archive.namelist() if "SOURCES.txt" in i]
-
-        if(sources_file_path):
-            sources_file_path = sources_file_path[0]
-            py_egg_files = archive.read(sources_file_path).decode("utf-8")
-            py_buf = StringIO(py_egg_files)
-            py_checksums_dict = {}
-            for py_egg_file in py_buf:
-                py_egg_file = py_egg_file.replace("\n","")
-                sha256 = hashlib.sha256()
-                try:
-                    with open(py_tmp_dir.name + "/" + py_package[0] + "-" + py_package[1] + "/"+ py_egg_file, 'rb') as f:
-                        while True:
-                            data = f.read(8192)
-                            if not data:
-                                break
-                            sha256.update(data)
-                    py_checksums_dict[py_egg_file] = base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=","")
-                except:
-                    logging.info("File not found: " + py_egg_file)
-                    print("File not found: " + py_egg_file)
-
-            archive.close()
-        else:
-            logging.info("Cannot find sources file for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
-            print("Cannot find sources file for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
-            return
-
-    # build the checksum dictionary if tar.gz
-    if(type == "tar.gz"):
-        archive = tarfile.open(name=py_filename, mode='r')
-        archive.extractall(py_tmp_dir.name)
-        sources_file_path = [i for i in archive.getnames() if "SOURCES.txt" in i]
-
-        if(sources_file_path):
-            sources_file_path = sources_file_path[0]
-            py_egg_sources_file = archive.extractfile(sources_file_path)
-            py_egg_files = py_egg_sources_file.read().decode("utf-8")
-            py_buf = StringIO(py_egg_files)
-            py_checksums_dict = {}
-            for py_egg_file in py_buf:
-                py_egg_file = py_egg_file.replace("\n","")
-                sha256 = hashlib.sha256()
-                try:
-                    with open(py_tmp_dir.name + "/" + py_package[0] + "-" + py_package[1] + "/"+ py_egg_file, 'rb') as f:
-                        while True:
-                            data = f.read(8192)
-                            if not data:
-                                break
-                            sha256.update(data)
-                    py_checksums_dict[py_egg_file] = base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=","")
-                except:
-                    logging.info("File not found: " + py_egg_file)
-                    print("File not found: " + py_egg_file)
-            archive.close()
-        else:
-            logging.info("Cannot find sources file for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
-            print("Cannot find sources file for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
-            return
-
-    # check each file in local with the dictionary
-    for py_package_file in py_package_files:
-        py_full_path = py_package_location + "/" + py_package_file
-        if(ignore_pyc == True and py_full_path.endswith(".pyc")):
-            continue
-        if py_package_file in py_checksums_dict:
+        py_checksums_dict = {}
+        for py_egg_file in archive.namelist():
+            py_egg_file = py_egg_file.replace("\n","")
             sha256 = hashlib.sha256()
-            with open(py_full_path, 'rb') as f:
+            with open(py_tmp_dir.name + "/" + py_egg_file, 'rb') as f:
                 while True:
                     data = f.read(8192)
                     if not data:
                         break
                     sha256.update(data)
-            if py_checksums_dict[py_package_file] == base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=",""):
-                print(".", end='')
-            else:
-                print("!", end='')
-                logging.info(py_full_path + ": trustlevel=0, package: " + py_package[0] + "==" + py_package[1])
+            if(type == "zip"):
+                py_egg_file = py_egg_file[len(py_package[0]+"-"+py_package[1]+"/"):]
+            py_checksums_dict[py_egg_file] = base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=","")
+        archive.close()
+
+    # build the checksum dictionary if tar.gz
+    if(type == "tar.gz"):
+        archive = tarfile.open(name=py_filename, mode='r')
+        archive.extractall(py_tmp_dir.name)
+
+        py_checksums_dict = {}
+        for py_egg_file in archive.getnames():
+            if(archive.getmember(py_egg_file).isfile()):
+                py_egg_file = py_egg_file.replace("\n","")
+                sha256 = hashlib.sha256()
+                with open(py_tmp_dir.name + "/" + py_egg_file, 'rb') as f:
+                    while True:
+                        data = f.read(8192)
+                        if not data:
+                            break
+                        sha256.update(data)
+                py_checksums_dict[py_egg_file[len(py_package[0]+"-"+py_package[1]+"/"):]] = base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=","")
+        archive.close()
+
+
+    # check each local file with the dictionary
+    for py_package_file in py_package_files:
+        py_full_path = os.path.abspath(py_package_location + "/" + py_package_file)
+        if(ignore_pyc == True and py_full_path.endswith(".pyc")):
+            continue
+        if py_package_file in py_checksums_dict:
+            sha256 = hashlib.sha256()
+            try:
+                with open(py_full_path, 'rb') as f:
+                    while True:
+                        data = f.read(8192)
+                        if not data:
+                            break
+                        sha256.update(data)
+                py_total_files += 1
+                if py_checksums_dict[py_package_file] == base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=",""):
+                    print(".", end='', flush=True)
+                    py_verified_files += 1
+                else:
+                    print("!", end='', flush=True)
+                    logging.info(package_manager+":"+py_full_path + ": trustlevel=0, package: " + py_package[0] + "==" + py_package[1])
+                    py_verification_failed_files += 1
+            except:
+                logging.debug(package_manager+":file " + py_package_file + " found in output of "+ package_manager +" show -f " + py_package[0] + ", but not found on the local system")
         else:
-            print("+", end='')
-            logging.info(py_full_path + ": trustlevel=1, package: " + py_package[0] + "==" + py_package[1])
+            print("+", end='',flush=True)
+            py_not_verified_files += 1
+            logging.info(package_manager+":"+py_full_path + ": trustlevel=1, package: " + py_package[0] + "==" + py_package[1])
 
-def check_py_libraries(package_manager,ignore_pyc):
-    py_packages_strings = subprocess.run([package_manager, '--no-python-version-warning' , '--disable-pip-version-check' ,'list'], stdout=subprocess.PIPE).stdout.decode('utf-8').split("\n")[2:-1]
-    py_tmp_dir = tempfile.TemporaryDirectory(dir = "/tmp")
+def handle_package(package_manager,ignore_pyc,py_tmp_dir,py_package):
+    # retrieve files in the local system with pip show
+    py_show = subprocess.run([package_manager, '--no-python-version-warning', '--disable-pip-version-check' , 'show','-f',py_package[0]], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    py_packages = []
-    for py_package in py_packages_strings:
-        py_parts = py_package.split()
-        py_packages.append(py_parts)
-
-    for py_package in py_packages:
-        py_show = subprocess.run([package_manager, '--no-python-version-warning', '--disable-pip-version-check' , 'show','-f',py_package[0]], stdout=subprocess.PIPE).stdout.decode('utf-8')
-
+    if(py_show.stderr.decode('utf-8') == ""):
         py_package_files = []
-        py_buf = StringIO(py_show)
+        py_buf = StringIO(py_show.stdout.decode('utf-8'))
         for py_line in py_buf:
+            # retrieve location of the package
             py_line_matches = re.match("Location:\s?(\S*).*",py_line)
             if py_line_matches:
                 py_package_location = py_line_matches.group(1).replace("\n", "")
+            # if version is not specified, retrieve it
+            if py_package[1] == "":
+                py_line_matches = re.match("Version:\s?(\S*).*",py_line)
+                if py_line_matches:
+                    py_package[1] = py_line_matches.group(1).replace("\n", "")
+            # retrieve files
             py_line_matches = re.match("^([^:]*)$",py_line)
             if py_line_matches:
                 py_package_files.append(py_line_matches.group(1).replace("\n", "").strip())
 
         py_package_version = py_package[0] + "==" + py_package[1]
-        print("\nHandling " + py_package_version)
+        #print("\nHandling " + py_package_version)
+
+        # if pip show doesn't find anything, reinitialize the list
         if(py_package_files[0] == "Cannot locate installed-files.txt"):
-            print("Cannot locate installed-files.txt, files on the local system are inferred")
-            logging.debug("Cannot locate installed-files.txt for " + py_package_version + ". Inferring files")
-            try:
-                py_package_files = dirscan(py_package_location+"/"+py_package[0],True)
-                py_package_files += dirscan(py_package_location+"/"+py_package[0]+"-"+py_package[1]+".egg-info",True)
-                py_offset = len(py_package_location) + 1
-                py_package_files = [py_temp[py_offset:] for py_temp in py_package_files]
-            except:
-                print("Cannot infer files, skipping verification")
-                logging.debug("Cannot infer file for " + py_package_version + ". Skipping verification")
-                continue
+            py_package_files = []
+
+        # try to infer additional files
+        py_infferred_directories = glob.glob(py_package_location+"/"+py_package[0]+"*")
+        for py_inferred_directory in py_infferred_directories:
+            new_py_package_files = dirscan(py_inferred_directory,True)
+            py_offset = len(py_package_location) + 1
+            new_py_package_files = [py_temp[py_offset:] for py_temp in new_py_package_files]
+            for new_py_package_file in new_py_package_files:
+                if new_py_package_file not in py_package_files:
+                    py_package_files.append(new_py_package_file)
 
         result = subprocess.run([package_manager, '--no-python-version-warning' , '--disable-pip-version-check' , 'download', py_package_version, "-d", py_tmp_dir.name, "--no-cache-dir",'--no-deps'], stdout=subprocess.PIPE, stderr=subprocess.PIPE )
         if(result.stderr.decode('utf-8')==""):
             py_filename = result.stdout.decode('utf-8').split("Saved ")[1].split("\n")[0]
             if(py_filename.endswith(".whl")):
-                handle_package(py_filename,py_package,py_package_files,py_package_location,py_tmp_dir,ignore_pyc,"whl")
+                handle_downloaded_package(package_manager,py_filename,py_package,py_package_files,py_package_location,py_tmp_dir,ignore_pyc,"whl")
             if(py_filename.endswith(".tar.gz")):
-                handle_package(py_filename,py_package,py_package_files,py_package_location,py_tmp_dir,ignore_pyc,"tar.gz")
+                handle_downloaded_package(package_manager,py_filename,py_package,py_package_files,py_package_location,py_tmp_dir,ignore_pyc,"tar.gz")
             if(py_filename.endswith(".zip")):
-                handle_package(py_filename,py_package,py_package_files,py_package_location,py_tmp_dir,ignore_pyc,"zip")
-            print()
+                handle_downloaded_package(package_manager,py_filename,py_package,py_package_files,py_package_location,py_tmp_dir,ignore_pyc,"zip")
         else:
-            logging.info("Cannot download package from pipy for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
-            print("Cannot download package from pipy for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
+            logging.info(package_manager+":Cannot download package from pipy for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
+            #print(package_manager+":Cannot download package from pipy for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
+            for py_package_file in py_package_files:
+                py_full_path = os.path.abspath(py_package_location + "/" + py_package_file)
+                if(not py_full_path.endswith(".pyc")):
+                    logging.info(py_full_path + ": trustlevel=1, package: " + py_package[0] + "==" + py_package[1])
+    else:
+        logging.info(package_manager+":Library " + py_package[0] +" not found on the system\n")
+        #print(package_manager+":Library not found on the system " + py_package[0])
+
+
+def check_py_libraries(package_manager,ignore_pyc,libraries_list=None):
+    py_tmp_dir = tempfile.TemporaryDirectory(dir = "/tmp")
+
+    if(libraries_list is None):
+        # retrieve all libraries
+        py_packages_strings = subprocess.run([package_manager, '--no-python-version-warning' , '--disable-pip-version-check' ,'list'], stdout=subprocess.PIPE).stdout.decode('utf-8').split("\n")[2:-1]
+
+        py_packages = []
+        for py_package in py_packages_strings:
+            py_parts = py_package.split()
+            py_packages.append(py_parts)
+
+        # check files of each pip library
+        for py_package in py_packages:
+            handle_package(package_manager,ignore_pyc,py_tmp_dir,py_package)
+    else:
+        # check only the libraries that are in the list
+        libraries_list = [library.split("==") for library in libraries_list]
+        # if no version specified, add an empty string
+        for library in libraries_list:
+            if(len(library) == 1):
+                library.append("")
+
+        # check each library in the list
+        for library in libraries_list:
+            handle_package(package_manager,ignore_pyc,py_tmp_dir,library)
 
     py_tmp_dir.cleanup()
 
-
 def main():
+    global py_total_files
+    global py_verified_files
+    global py_not_verified_files
+    global py_verification_failed_files
+
     args = parse_command_line()
     # set the logging level based on the command line option
     logging.basicConfig(filename="debsums2.log", format='%(asctime)s:%(levelname)s:%(message)s', \
@@ -848,20 +864,20 @@ def main():
     if args.writedb == True:
         writeJSON('hashdb.json.bak', hdList)
 
-    for hd in hdList:
-        if isvalidkey(hd, 'filename') and isinstance(hd['filename'], str):
-            hd['filename'] = str(
-                os.path.join(
-                    os.sep,
-                    os.path.normpath(
-                        hd['filename'])))
-
     if (args.directory or args.file or args.package) \
             or (args.list_package or args.list_file or args.remove_file or args.remove_package) \
             or args.clean == True \
             or args.stats == True \
             or args.verify_online == True \
             or args.update == True:
+        for hd in hdList:
+            if isvalidkey(hd, 'filename') and isinstance(hd['filename'], str):
+                hd['filename'] = str(
+                    os.path.join(
+                        os.sep,
+                        os.path.normpath(
+                            hd['filename'])))
+
         hdDelList = []
         hdDupList = []
         # FIXME:
@@ -1106,13 +1122,39 @@ def main():
                 md5difference[0] +
                 ": Online md5sum differs to md5sum in hashdb")
 
-    if args.check_py == True:
-        if(os.system("command -v pip >/dev/null 2>&1") == 0):
-            print("\nChecking pip libraries -----")
+    if(args.check_all_py or args.check_py):
+        print()
+        print("Result codes reminders:")
+        print("dot (.) / trustlevel=4                     " + '\t' + "verified online against pipy package")
+        #print("star (*) / trustlevel=3                    " + '\t' + "verified locally against pipy package")
+        #print("star (-) / trustlevel=2                    " + '\t' + "verified locally against debsums2 md5sum library, needs --writedb in a previous debsums2 run")
+        print("plus (+) / trustlevel=1                    " + '\t' + "not verified, probably new or changed file")
+        print("exclamation mark (!) / trustlevel=0        " + '\t' + "verification failed, see debsums2.log for info/warning")
+        print()
+
+    if args.check_all_py == True:
+        if(os.system("command -v pip2 >/dev/null 2>&1") == 0):
+            print("Checking pip2 libraries -----")
             check_py_libraries("pip",args.ignore_pyc)
+            print("\n")
         if(os.system("command -v pip3 >/dev/null 2>&1") == 0):
-            print("\nChecking pip3 libraries -----")
+            print("Checking pip3 libraries -----")
             check_py_libraries("pip3",args.ignore_pyc)
+            print("\n")
+        print("Total number of files analyzed: " + str(py_total_files))
+        print("Total number of successful verifications: " + str(py_verified_files))
+        print("Total number of not verified files: " + str(py_not_verified_files))
+        print("Total number of failed verifications: " + str(py_verification_failed_files))
+
+    if args.check_py is not None:
+        if(os.system("command -v pip2 >/dev/null 2>&1") == 0):
+            print("Checking pip2 libraries -----")
+            check_py_libraries("pip2",args.ignore_pyc,args.check_py)
+            print("\n")
+        if(os.system("command -v pip3 >/dev/null 2>&1") == 0):
+            print("Checking pip3 libraries -----")
+            check_py_libraries("pip3",args.ignore_pyc,args.check_py)
+            print("\n")
 
     if args.writedb == True:
         writeJSON(
