@@ -742,6 +742,7 @@ def handle_downloaded_package(package_manager,py_filename,py_package,py_package_
         py_full_path = os.path.abspath(py_package_location + "/" + py_package_file)
         if(ignore_pyc == True and py_full_path.endswith(".pyc")):
             continue
+        py_total_files += 1
         if py_package_file in py_checksums_dict:
             sha256 = hashlib.sha256()
             try:
@@ -751,7 +752,6 @@ def handle_downloaded_package(package_manager,py_filename,py_package,py_package_
                         if not data:
                             break
                         sha256.update(data)
-                py_total_files += 1
                 if py_checksums_dict[py_package_file] == base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=",""):
                     print(".", end='', flush=True)
                     py_verified_files += 1
