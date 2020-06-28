@@ -51,6 +51,11 @@ def parse_command_line():
     parser = argparse.ArgumentParser(
         description='Integrity checker for a Debian installation')
     parser.add_argument(
+        '--full-system-check',
+        '--fsc',
+        help='Perform an online check of all the packages and all the python libraries',
+        action='store_true')
+    parser.add_argument(
         '-d',
         '--directory',
         help='Target directory for the integrity check')
@@ -62,6 +67,11 @@ def parse_command_line():
         '-p',
         '--package',
         help='Target package for the integrity check.')
+    parser.add_argument(
+        '--all-packages',
+        '--ap',
+        help='Check the integrity of all packages',
+        action='store_true')
     parser.add_argument(
         '-l',
         '--list-package',
@@ -152,6 +162,10 @@ def parse_command_line():
 
     args = parser.parse_args()
 
+    if args.full_system_check:
+        args.all_packages = True
+        args.check_all_py = True
+        
     if args.version:
         print("debsums2 - dpkg integrity check")
         print("Copyright (C) 2014  Roland Wenzel")
@@ -171,12 +185,13 @@ def parse_command_line():
         print("along with this program.  If not, see <https://www.gnu.org/licenses/>.")
         sys.exit(0)
 
-    if not (args.directory or args.file or args.package) \
+    if not (args.directory or args.file or args.package or args.all_packages) \
             and not (args.list_package or args.list_file or args.remove_file or args.remove_package) \
             and args.clean == False \
             and args.stats == False \
             and args.verify_online == False \
             and args.check_py == False \
+            and args.check_all_py == False \
             and args.update == False:
         parser.print_help()
         sys.exit(1)
@@ -871,7 +886,7 @@ def main():
     logging.getLogger('urllib3').setLevel(getattr(logging, args.log_level.upper()))
     logging.debug("Starting debsums2 -----------------------------")
 
-    if args.directory is not None or args.update == True or args.file != None or args.package != None:
+    if args.directory is not None or args.update == True or args.file != None or args.package != None or args.all_packages != None:
         import apt
         aptcache = apt.Cache()
     if args.online or args.online_full or args.verify_online:
@@ -882,7 +897,7 @@ def main():
     if args.writedb == True:
         writeJSON('hashdb.json.bak', hdList)
 
-    if (args.directory or args.file or args.package) \
+    if (args.directory or args.file or args.package or args.all_packages) \
             or (args.list_package or args.list_file or args.remove_file or args.remove_package) \
             or args.clean == True \
             or args.stats == True \
@@ -962,7 +977,7 @@ def main():
         print()
         print("Checksum of hashdb before read:         " + '\t' + md5sum_before)
         print("Entries read from hashdb:               " + '\t' + str(len(hdList)))
-    if (args.directory or args.file or args.package) \
+    if (args.directory or args.file or args.package or args.all_packages) \
             or (args.list_package or args.list_file or args.remove_file or args.remove_package) \
             or args.clean == True \
             or args.stats == True \
@@ -1023,6 +1038,15 @@ def main():
         fnewSet = set(fsList).difference(getset(hdList, 'filename'))
         print("Number of new files in package " + args.package + '\t' + str(len(fnewSet)))
 
+    if args.all_packages is not None:
+        for current_package in aptcache.keys():
+            for i in extract(iList, 'package', value=current_package, exactmatch=True):
+                if os.path.exists(i['filename']):
+                    fsList.append(i['filename'])
+        print("Total files in all packages " + '\t' + str(len(fsList)))
+        fnewSet = set(fsList).difference(getset(hdList, 'filename'))
+        print("Number of new files in all packages "+ '\t' + str(len(fnewSet)))
+
     if args.directory is not None:
         fsList = sorted(dirscan(args.directory, False))
         print("Total files found in " + args.directory + '\t' + str(len(fsList)))
@@ -1030,7 +1054,7 @@ def main():
         print("Number of new files in package " + args.directory + '\t' + str(len(fnewSet)))
     exit
 
-    if (args.directory or args.file or args.package) \
+    if (args.directory or args.file or args.package or args.all_packages) \
             or (args.list_package or args.list_file or args.remove_file or args.remove_package) \
             or args.clean == True \
             or args.stats == True \
