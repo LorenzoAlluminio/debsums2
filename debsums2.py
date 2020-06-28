@@ -45,6 +45,7 @@ py_total_files = 0
 py_verified_files = 0
 py_not_verified_files = 0
 py_verification_failed_files = 0
+py_file_exceptions = 0
 
 def parse_command_line():
     parser = argparse.ArgumentParser(
@@ -687,6 +688,7 @@ def handle_downloaded_package(package_manager,py_filename,py_package,py_package_
     global py_verified_files
     global py_not_verified_files
     global py_verification_failed_files
+    global py_file_exceptions
 
     # build the checksum dictionary if whl or zip
     if(type == "zip" or type =="whl"):
@@ -761,6 +763,7 @@ def handle_downloaded_package(package_manager,py_filename,py_package,py_package_
                     py_verification_failed_files += 1
             except:
                 logging.debug(package_manager+":file " + py_package_file + " found in output of "+ package_manager +" show -f " + py_package[0] + ", but not found on the local system")
+                py_file_exceptions += 1
         else:
             print("+", end='',flush=True)
             py_not_verified_files += 1
@@ -1158,6 +1161,7 @@ def main():
         print("Total number of successful verifications: " + str(py_verified_files))
         print("Total number of not verified files: " + str(py_not_verified_files))
         print("Total number of failed verifications: " + str(py_verification_failed_files))
+        print("Total number of files that triggered an exception: " + str(py_file_exceptions))
 
     if args.writedb == True:
         writeJSON(
