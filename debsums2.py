@@ -133,6 +133,12 @@ def parse_command_line():
         nargs='+',
         help='check a list of python library')
     parser.add_argument(
+        '--py-package-managers',
+        '--ppm',
+        nargs='+',
+        help='set the package managers to use to check(pip3,pip2,pip ...)',
+        default=["pip2","pip3"])
+    parser.add_argument(
         '--ignore-pyc',
         '--ipyc',
         help='Ignore pyc files when checking python libraries',
@@ -690,16 +696,21 @@ def handle_downloaded_package(package_manager,py_filename,py_package,py_package_
         py_checksums_dict = {}
         for py_egg_file in archive.namelist():
             py_egg_file = py_egg_file.replace("\n","")
-            sha256 = hashlib.sha256()
-            with open(py_tmp_dir.name + "/" + py_egg_file, 'rb') as f:
-                while True:
-                    data = f.read(8192)
-                    if not data:
-                        break
-                    sha256.update(data)
-            if(type == "zip"):
-                py_egg_file = py_egg_file[len(py_package[0]+"-"+py_package[1]+"/"):]
-            py_checksums_dict[py_egg_file] = base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=","")
+            if(not py_egg_file.endswith("/")):
+                sha256 = hashlib.sha256()
+                try:
+                    with open(py_tmp_dir.name + "/" + py_egg_file, 'rb') as f:
+                        while True:
+                            data = f.read(8192)
+                            if not data:
+                                break
+                            sha256.update(data)
+                except:
+                    logging.error(package_manager+":Error while computing the checksum of " + py_tmp_dir.name + "/" + py_egg_file)
+                    continue
+                if(type == "zip"):
+                    py_egg_file = py_egg_file[len(py_package[0]+"-"+py_package[1]+"/"):]
+                py_checksums_dict[py_egg_file] = base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=","")
         archive.close()
 
     # build the checksum dictionary if tar.gz
@@ -712,12 +723,16 @@ def handle_downloaded_package(package_manager,py_filename,py_package,py_package_
             if(archive.getmember(py_egg_file).isfile()):
                 py_egg_file = py_egg_file.replace("\n","")
                 sha256 = hashlib.sha256()
-                with open(py_tmp_dir.name + "/" + py_egg_file, 'rb') as f:
-                    while True:
-                        data = f.read(8192)
-                        if not data:
-                            break
-                        sha256.update(data)
+                try:
+                    with open(py_tmp_dir.name + "/" + py_egg_file, 'rb') as f:
+                        while True:
+                            data = f.read(8192)
+                            if not data:
+                                break
+                            sha256.update(data)
+                except:
+                    logging.error(package_manager+":Error while computing the checksum of " + py_tmp_dir.name + "/" + py_egg_file)
+                    continue
                 py_checksums_dict[py_egg_file[len(py_package[0]+"-"+py_package[1]+"/"):]] = base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=","")
         archive.close()
 
@@ -1132,29 +1147,17 @@ def main():
         print("exclamation mark (!) / trustlevel=0        " + '\t' + "verification failed, see debsums2.log for info/warning")
         print()
 
-    if args.check_all_py == True:
-        if(os.system("command -v pip2 >/dev/null 2>&1") == 0):
-            print("Checking pip2 libraries -----")
-            check_py_libraries("pip",args.ignore_pyc)
-            print("\n")
-        if(os.system("command -v pip3 >/dev/null 2>&1") == 0):
-            print("Checking pip3 libraries -----")
-            check_py_libraries("pip3",args.ignore_pyc)
-            print("\n")
+    if args.check_all_py == True or args.check_py is not None:
+        for py_package_manager in args.py_package_managers:
+            if(os.system("command -v "+ py_package_manager +" >/dev/null 2>&1") == 0):
+                print("Checking "+ py_package_manager +" libraries -----")
+                check_py_libraries(py_package_manager,args.ignore_pyc,args.check_py)
+                print("\n")
+
         print("Total number of files analyzed: " + str(py_total_files))
         print("Total number of successful verifications: " + str(py_verified_files))
         print("Total number of not verified files: " + str(py_not_verified_files))
         print("Total number of failed verifications: " + str(py_verification_failed_files))
-
-    if args.check_py is not None:
-        if(os.system("command -v pip2 >/dev/null 2>&1") == 0):
-            print("Checking pip2 libraries -----")
-            check_py_libraries("pip2",args.ignore_pyc,args.check_py)
-            print("\n")
-        if(os.system("command -v pip3 >/dev/null 2>&1") == 0):
-            print("Checking pip3 libraries -----")
-            check_py_libraries("pip3",args.ignore_pyc,args.check_py)
-            print("\n")
 
     if args.writedb == True:
         writeJSON(
