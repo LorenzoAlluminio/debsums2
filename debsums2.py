@@ -165,6 +165,7 @@ def parse_command_line():
     if args.full_system_check == True:
         args.all_packages = True
         args.check_all_py = True
+        args.online = True
 
     if args.version:
         print("debsums2 - dpkg integrity check")
