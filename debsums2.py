@@ -50,8 +50,8 @@ def parse_command_line():
     parser = argparse.ArgumentParser(
         description='Integrity checker for a Debian installation')
     parser.add_argument(
-        '--full-system-check',
-        '--fsc',
+        '--complete-system-check',
+        '--csc',
         help='Perform an online check of all the packages and all the python libraries',
         action='store_true')
     parser.add_argument(
@@ -162,7 +162,7 @@ def parse_command_line():
 
     args = parser.parse_args()
 
-    if args.full_system_check == True:
+    if args.complete_system_check == True:
         args.all_packages = True
         args.check_all_py = True
         args.online = True
