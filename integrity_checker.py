@@ -906,7 +906,7 @@ def main():
     print("Result codes reminders:")
     print("dot (.) / trustlevel=4                     " + '\t' + "verified online against debian package")
     print("star (*) / trustlevel=3                    " + '\t' + "verified locally against debian package")
-    print("star (-) / trustlevel=2                    " + '\t' + "verified locally against integrity_checker md5sum library, needs --writedb in a previous integrity_checker run")
+    print("star (-) / trustlevel=2                    " + '\t' + "verified locally against the hashdb")
     print("plus (+) / trustlevel=1                    " + '\t' + "not verified, probably new or changed file")
     print("exclamation mark (!) / trustlevel=0        " + '\t' + "verification failed, see integrity_checker.log for info/warning")
     print()
@@ -999,7 +999,8 @@ def main():
             or args.verify_online == True \
             or args.all_packages == True \
             or args.update == True:
-        print("START WORKING ON APT PACKAGES ------------------------------------")
+        print()
+        print("START WORKING ON APT PACKAGES / FILES ------------------------------------")
         print()
         print("Entries read from " + infodir + ":      " + '\t' + str(len(iList)))
 
@@ -1156,10 +1157,11 @@ def main():
                     totalchanges = totalchanges + changes
                     changes = 0
             print("\n" + str(totalchanges + changes) + " changes to hashdb.")
-        print("\nSTATISTICS ON APT PACKAGES ---------")
-        print("Total number of files analyzed: " + str(apt_total_files))
-        for i in range(len(apt_trustlevel_counters)-1,-1,-1):
-            print("Number of files with trustlevel = " + str(i) + " : " + str(apt_trustlevel_counters[i]))
+        if(args.update == False and args.verify_online == False):
+            print("\nSTATISTICS ON APT PACKAGES / FILES ---------")
+            print("Total number of files analyzed: " + str(apt_total_files))
+            for i in range(len(apt_trustlevel_counters)-1,-1,-1):
+                print("Number of files with trustlevel = " + str(i) + " : " + str(apt_trustlevel_counters[i]))
 
     if args.verify_online == True:
         uriSet = getset(hdList, 'uri')

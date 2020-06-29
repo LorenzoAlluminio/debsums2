@@ -194,13 +194,13 @@ integrity_checker reads the stored information for this run, all files were chec
 
 ### Update the hashdb
 
-```
+```bash
 python3 integrity_checker.py --update --online
 ```
 
 First check `integrity_checker.log` for any irregularity. If you are sure you want the new status stored, run again and write to storage.
 
-```
+```bash
 python3 integrity_checker.py --update --online --writedb
 ```
 
@@ -208,10 +208,9 @@ python3 integrity_checker.py --update --online --writedb
 This command only makes sense on a fully crawled system (`integrity_checker.py --directory=/`), since `--update` does not work on local files, but compares the dpkg cache to the hashdb.
 
 
-
 ### Verification of md5sums stored in hashdb
 
-```
+```bash
 python3 integrity_checker.py --verify-online
 ```
 
@@ -225,6 +224,6 @@ The result of an integrity check is printed as a single character. Detailed info
 
 * verified online against debian package: dot (`.`) / `trustlevel=4`
 * verified locally against debian package: star (`*`) / `trustlevel=3`
-* verified locally against integrity_checker md5sum library, needs `--writedb` in a previous integrity_checker run: dash (`-`) / `trustlevel=2`
+* verified locally against the hashdb, needs `--writedb` in a previous integrity_checker run: dash (`-`) / `trustlevel=2`
 * not verified, probably new or changed file: plus (`+`) / `trustlevel=1`
 * verification failed, see integrity_checker.log for info/warning: exclamation mark (`!`) / `trustlevel=0`
