@@ -151,7 +151,7 @@ By default the script uses the command `pip2` and `pip3` to check for the python
 
  integrity_checker stays on the device where directory is located, it will not follow mount points.
 
-##Usage with the hashdb
+## Usage with the hashdb
 
 ### complete system crawl
 
