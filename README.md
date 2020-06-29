@@ -2,16 +2,15 @@ This is a fork of [debsums2](https://github.com/reox/debsums2), which is a pytho
 
 **Note: Not all features were tested and there might be bugs in this version!**
 
-# integrity checker
+# Integrity checker
 
-## table of content
+## Table of content
 * [Introduction](#introduction)
 * [Requirements](#requirements)
 * [Testing](#testing)
 * [Usage without the hashdb](#usage-without-the-hashdb)
 * [Usage with the hashdb](#usage-with-the-hashdb)
 * [Result codes](#result-codes)
-
 
 ## Introduction
 
@@ -20,7 +19,7 @@ integrity checker is born as an extension of debsums2, which is in turn an exten
 Moreover integrity_checker aims at automating integrity checks for as many parts of a system as possible, not just for deb packages.
 
 There are 2 ways in which you can use the tool:
-- [without the hashdb](#usage-without-the-hashdb), by computing on the fly the hashes on files and comparing them online.
+- [without the hashdb](#usage-without-the-hashdb), by computing on the fly the hashes of files and comparing them online.
 - [with the hashdb](#usage-with-the-hashdb), by crawling the entire system (or part of it) and storing checksums in a json file, that later can be used as ground truth in order to detect if a file has been modified.
 
 Things that can be checked:
@@ -44,30 +43,39 @@ Future improvements:
 
 ## Testing
 
-If you want to test the project or check out the functionalities, I suggest that you do it using the Dockerfile that is provided in this repo. This enables you to have an out of the box environment where you have everything that is needed to run the project, moreover the environment is smaller and a complete system check can be performed in a reasonable amount of time.
+If you want to test the project or check out the functionalities, I suggest that you do it using the Dockerfile that is provided in this repository. This enables you to have a small out of the box environment where you have everything that is needed to run the project and a complete system check can be performed in a reasonable amount of time.
 
 - build the docker
 ```bash
-docker build -t debsums2 .
+docker build -t integrity_checker .
  ```
 
  - run the docker and mount the folder containing the script
  ```bash
- docker run --volume $PWD:/home/debsums2 -it -d --name debsums2 debsums2
+ docker run --volume $PWD:/home/integrity_checker -it -d --name integrity_checker integrity_checker
  ```
 
  - access the docker and run command from there
  ```bash
- docker exec -it debsums2 /bin/bash
+ docker exec -it integrity_checker /bin/bash
 ```
 
-
 ## Usage without the hashdb
+
+When the script terminates, you can check the integrity_checker.log to look for file with different trustlevels:
+```bash
+cat integrity_checker.log | grep trustlevel=4
+cat integrity_checker.log | grep trustlevel=3
+cat integrity_checker.log | grep trustlevel=2
+cat integrity_checker.log | grep trustlevel=1
+cat integrity_checker.log | grep trustlevel=0
+```
+This is useful for every command that you can launch.
 
 ### complete online system check
 
 ```bash
-python3 debsums2.py --complete-system-check --ignore-pyc
+python3 integrity_checker.py --complete-system-check --online --ignore-pyc
 ```
 
 This command will perform an online check of all the deb packages and all the python libraries.
@@ -75,162 +83,91 @@ Moreover the `--ignore-pyc` option will ensure that the .pyc file are ignored wh
 
 ### complete online deb packages check
 ```bash
-python3 debsums2.py --all-packages
+python3 integrity_checker.py --all-packages --online
 ```
 This command will perform an online check of all the deb packages of the system.
 
 ### complete online python libraries check
 ```bash
-python3 debsums2.py --check-all-py --ignore-pyc
+python3 integrity_checker.py --check-all-py --ignore-pyc
 ```
 This command will perform an online check of all the python libraries.
-Moreover the `--ignore-pyc` option will ensure that the .pyc file are.
+Moreover the `--ignore-pyc` option will ensure that the .pyc file are ignored.
 
 ### selective online deb packages check
 ```bash
-python3 debsums2.py --package bash vim
+python3 integrity_checker.py --package bash vim --online
 ```
 This command will perform an online check of the files belonging to the packages bash and vim.
 1 or more packages can be specified.
 
 ### selective online python libraries check
 ```bash
-python3 debsums2.py --check-py simplejson urllib3 --ignore-pyc
+python3 integrity_checker.py --check-py simplejson urllib3 --ignore-pyc
 ```
 This command will perform an online check of the files belonging to the libraries simplejson and urllib3.
 Moreover the `--ignore-pyc` option will ensure that the .pyc file are.
 
 ### changing the package managers
 
-By default the script uses the command `pip2` and `pip3` to check for the python libraries. If you want to change this behavior you can supply your own list with the option --py-package-managers
+By default the script uses the command `pip2` and `pip3` to check for the python libraries. If you want to change this behavior you can supply your own list with the option --py-package-managers:
 
  ```bash
- python3 debsums2.py --check-all-py --py-package-managers pip
+ python3 integrity_checker.py --check-all-py --py-package-managers pip
  ```
+
+ ### Single file check, offline
+
+ ```bash
+  python3 integrity_checker.py --file /bin/bash
+ ```
+
+ ### Single file check, online
+
+ ```bash
+ python3 integrity_checker.py --online --file /bin/bash
+ ```
+
+ ### Package check, online
+
+ ```bash
+ python3 integrity_checker.py --online --package bash
+ ```
+
+ There are 66 files found within the package, 4 files do not have a checksum, otherwise clean. As for those 4 files: Debian decided not to generate md5sums for almost all of the configuration files below `/etc` in their packages.
+ If you want to verify those files online, you will have to download the full packages (see next example). I suggest running this verification using `--directory=/etc --writedb` after checking and storing everything else.
+
+ ### Package check, online with full package download
+
+ ```bash
+ python3 integrity_checker.py --online-full --package bash
+ ```
+
+ ### Directory check, online
+
+ ```bash
+ python3 integrity_checker.py --directory=/bin --online
+ ```
+
+ integrity_checker stays on the device where directory is located, it will not follow mount points.
 
 ##Usage with the hashdb
 
 ### complete system crawl
 
-```
-$ python3 debsums2.py --directory / --online --writedb
+```bash
+python3 integrity_checker.py --directory / --online --writedb
 ```
 
 This will check your local system without the mount points. It is wise to delete all pyc files first (`find / -name \*.pyc -delete`).
 
-After the run you will need to analyze the log (`debsums2.log`), look for `trustlevel=0` (changed file) and `trustlevel=1` (unknown file).
-
-
-
-### Example 1: Single file check, offline
-
-```
-$ python3 debsums2.py --file /bin/bash
-
-Entries read from /var/lib/dpkg/info: 12345
-*
-1 changes to hashdb.
-No entries written to hashdb
-
-12345 md5sums read from the directory where debian stores the package information. The md5sum matches locally. There are differences to the debsums2 storage. The debsums storage has not been saved.
-```
-
-
-### Example 2: Single file check, online
-
-```
-$ python3 debsums2.py --online --file /bin/bash
-
-Entries read from /var/lib/dpkg/info: 12345
-.
-1 changes to hashdb.
-No entries written to hashdb
-```
-
-All is well, the md5sum of `/bin/bash` matches the md5sum within the control file of the corresponding debian package on the debian server.
-
-
-
-### Example 3: Package check, online
-
-```
-$ python3 debsums2.py --online --package bash
-
-Entries read from /var/lib/dpkg/info: 12345
-Total files in package bash: 55
-Number of new files in package bash: 55
-.++++..................................................
-55 changes to hashdb.
-No entries written to hashdb
-```
-
-There are 55 files found within the package, none of them are in the debsums2 storage.
-
-4 files do not have a checksum, otherwise clean. As for those 4 files: Debian in all its wisdom decided not to generate md5sums for almost all of the configuration files below `/etc` in their packages.
-If you want to verify those files online, you will have to download the full packages (see next example). I suggest running this verification using `--directory=/etc --writedb` after checking and storing everything else.
-
-
-
-### Example 4: Package check, online with full package download
-
-```
-$ python3 debsums2.py --online-full --package bash
-
-Entries read from /var/lib/dpkg/info: 12345
-Total files in package bash: 55
-Number of new files in package bash: 55
-.!.....................................................
-55 changes to hashdb.
-No entries written to hashdb
-```
-
-1 file on (my) system is changed, checking `debsums2.log`:
-
-```
-INFO:root:/etc/bash.bashrc: trustlevel=0, package: bash
-```
-
-which is correct, since I did change this file.
-
-
-
-### Example 5: Directory check, online
-
-```
-$ python3 debsums2.py --directory=/bin --online
-
-Entries read from /var/lib/dpkg/info: 12345
-Total files found in /bin: 121
-Number of new files in package /bin: 121
-.............................................................
-............................................................
- 121 changes to hashdb.
- No entries written to hashdb
-```
-
-debsums2 stays on the device where directory is located, it will not follow mount points.
-
-
-
-### Example 6: Working with the hashdb
-
-```
-$ python3 debsums2.py --directory=/bin --writedb
-
-Entries read from /var/lib/dpkg/info: 12345
-Total files found in /bin: 121
-Number of new files in package /bin: 121
-*************************************************************
-************************************************************
-121 changes to hashdb.
-Checksum of hashdb after write: f2a9acb71b91a5b0f44f6832ea81caf7
-121 entries written to hashdb
-```
-
 The first run with `--writedb` will create a file `hashdb.json`, storing the md5sums and package information.
-A md5sum is calculated for this file before and after the debsums2 run, you may store that value somewhere offline.
+A md5sum is calculated for this file before and after the integrity_checker run, you may store that value somewhere offline.
 
-```
+After the run you will need to analyze the log (`integrity_checker.log`), look for `trustlevel=0` (changed file) and `trustlevel=1` (unknown file).
+
+Example entry:
+```bash
  {
   "filename": "/bin/bash",
   "md5_hl": "144968564a6b1159ed82059920cea76f",
@@ -241,72 +178,53 @@ A md5sum is calculated for this file before and after the debsums2 run, you may 
  }
 ```
 
+### Writing single directory to the hashdb
 
-
-### Example 7: Running #6 again, adding online verification
-
-```
-$ python3 debsums2.py --directory=/bin --writedb --online
-
-Checksum of hashdb before read: f2a9acb71b91a5b0f44f6832ea81caf7
-Entries read from hashdb: 121
-Entries read from /var/lib/dpkg/info: 12345
-Total files found in /bin: 121
-Number of new files in package /bin: 0
-..............................................................
-...........................................................
-121 changes to hashdb.
-Checksum of hashdb before read: f2a9acb71b91a5b0f44f6832ea81caf7
-Checksum of hashdb after write: ea5bffb2fa69b2b086c4f0ff5727125f
-121 entries written to hashdb
+```bash
+python3 integrity_checker.py --directory=/bin --writedb
 ```
 
-debsums2 reads the stored information for this run, all files were checked before. The hashdb contains "md5_online" for each entry after the run, the checksum for `hashdb.json` is updated.
+### Writing single directory to the hashdb, adding online verification
 
-
-
-### Example 8: Update the hashdb
-
-```
-$ python3 debsums2.py --update --online
+```bash
+python3 integrity_checker.py --directory=/bin --writedb --online
 ```
 
-First check `debsums2.log` for any irregularity. If you are sure you want the new status stored, run again and write to storage.
+integrity_checker reads the stored information for this run, all files were checked before. The hashdb contains "md5_online" for each entry after the run, the checksum for `hashdb.json` is updated.
+
+### Update the hashdb
 
 ```
-$ python3 debsums2.py --update --online --writedb
+python3 integrity_checker.py --update --online
+```
+
+First check `integrity_checker.log` for any irregularity. If you are sure you want the new status stored, run again and write to storage.
+
+```
+python3 integrity_checker.py --update --online --writedb
 ```
 
 `--update` is to be run after `apt-get update`. It finds removed, added and changed files as well as changed uris.
-This command only makes sense on a fully crawled system (`debsums2.py --directory=/`), since `--update` does not work on local files, but compares the dpkg cache to the hashdb.
+This command only makes sense on a fully crawled system (`integrity_checker.py --directory=/`), since `--update` does not work on local files, but compares the dpkg cache to the hashdb.
 
 
 
-### Example 9: Verification of md5sums stored in hashdb
+### Verification of md5sums stored in hashdb
 
 ```
-$ python3 debsums2.py --verify-online
-
-Checksum of hashdb before read: ea5bffb2fa69b2b086c4f0ff5727125f
-Entries read from hashdb: 121
-Entries read from /var/lib/dpkg/info: 12345
-Number of packages to fetch online: 30
-Extracted md5sums from online packages: 1493
-Number of md5sums in hashdb: 121
-Number of mismatched md5sums in hashdb: 0
-No entries written to hashdb
+python3 integrity_checker.py --verify-online
 ```
 
-If the number of mismatched md5sums is not null, check `debsums2.log` for details.
+If the number of mismatched md5sums is not null, check `integrity_checker.log` for details.
 
-This command is for everybody with a high paranoia level suspecting a deeply compromized system, therefore the command can and should be run on a different system, you will need to transfer the hashdb. Be aware that the download of all control files takes some time, you can watch the progress with `tail -f debsums2.log`.
+This command is for everybody with a high paranoia level suspecting a deeply compromized system, therefore the command can and should be run on a different system, you will need to transfer the hashdb. Be aware that the download of all control files takes some time, you can watch the progress with `tail -f integrity_checker.log`.
 
 ## Result codes
 
-The result of an integrity check is printed as a single character. Detailed information is logged into `debsums2.log`.
+The result of an integrity check is printed as a single character. Detailed information is logged into `integrity_checker.log`.
 
 * verified online against debian package: dot (`.`) / `trustlevel=4`
 * verified locally against debian package: star (`*`) / `trustlevel=3`
-* verified locally against debsums2 md5sum library, needs `--writedb` in a previous debsums2 run: dash (`-`) / `trustlevel=2`
+* verified locally against integrity_checker md5sum library, needs `--writedb` in a previous integrity_checker run: dash (`-`) / `trustlevel=2`
 * not verified, probably new or changed file: plus (`+`) / `trustlevel=1`
-* verification failed, see debsums2.log for info/warning: exclamation mark (`!`) / `trustlevel=0`
+* verification failed, see integrity_checker.log for info/warning: exclamation mark (`!`) / `trustlevel=0`
