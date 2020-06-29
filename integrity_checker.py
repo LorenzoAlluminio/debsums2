@@ -886,10 +886,10 @@ def main():
 
     args = parse_command_line()
     # set the logging level based on the command line option
-    logging.basicConfig(filename="debsums2.log", format='%(asctime)s:%(levelname)s:%(message)s', \
+    logging.basicConfig(filename="integrity_checker.log", format='%(asctime)s:%(levelname)s:%(message)s', \
     level=getattr(logging, args.log_level.upper()))
     logging.getLogger('urllib3').setLevel(getattr(logging, args.log_level.upper()))
-    logging.debug("Starting debsums2 -----------------------------")
+    logging.debug("Starting integrity_checker -----------------------------")
 
     if args.directory is not None or args.update == True or args.file != None or args.package != None or args.all_packages == True:
         import apt
@@ -906,9 +906,9 @@ def main():
     print("Result codes reminders:")
     print("dot (.) / trustlevel=4                     " + '\t' + "verified online against debian package")
     print("star (*) / trustlevel=3                    " + '\t' + "verified locally against debian package")
-    print("star (-) / trustlevel=2                    " + '\t' + "verified locally against debsums2 md5sum library, needs --writedb in a previous debsums2 run")
+    print("star (-) / trustlevel=2                    " + '\t' + "verified locally against integrity_checker md5sum library, needs --writedb in a previous integrity_checker run")
     print("plus (+) / trustlevel=1                    " + '\t' + "not verified, probably new or changed file")
-    print("exclamation mark (!) / trustlevel=0        " + '\t' + "verification failed, see debsums2.log for info/warning")
+    print("exclamation mark (!) / trustlevel=0        " + '\t' + "verification failed, see integrity_checker.log for info/warning")
     print()
 
     if (args.directory or args.file or args.package) \

@@ -1,6 +1,4 @@
 __pycache__/
-debsums2.log
+integrity_checker.log
 hashdb.json
 hashdb.json.bak
-Makefile
-Docker_commands
