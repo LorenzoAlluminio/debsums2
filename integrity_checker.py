@@ -656,7 +656,7 @@ def eval_trustlevel(fileactive, trustlevel):
     global apt_trustlevel_counters
     global apt_total_files
 
-    if trustlevel < 4:
+    if trustlevel <= 4:
         if isvalidkey(fileactive, 'filename', 'NotNone'):
             if isvalidkey(fileactive, 'package', 'NotNone'):
                 logging.info(
@@ -775,6 +775,7 @@ def handle_downloaded_package(package_manager,py_filename,py_package,py_package_
                         sha256.update(data)
                 if py_checksums_dict[py_package_file] == base64.b64encode(sha256.digest(),b"-_").decode("utf-8").replace("=",""):
                     sys.stdout.write(".")
+                    logging.info(package_manager+":"+py_full_path + ": trustlevel=4, package: " + py_package[0] + "==" + py_package[1])
                     py_trustlevel_counters[4] += 1
                 else:
                     sys.stdout.write("!")
