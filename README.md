@@ -2,9 +2,9 @@ This is a fork of [debsums2](https://github.com/reox/debsums2), which is a pytho
 
 **Note: Not all features were tested and there might be bugs in this version!**
 
-#integrity checker
+# integrity checker
 
-##table of content
+## table of content
 * [Introduction](#introduction)
 * [Requirements](#requirements)
 * [Testing](#testing)
@@ -13,7 +13,7 @@ This is a fork of [debsums2](https://github.com/reox/debsums2), which is a pytho
 * [Result codes](#result-codes)
 
 
-##Introduction
+## Introduction
 
 integrity checker is born as an extension of debsums2, which is in turn an extended version of the file integrity check tool 'debsums'. The major difference of debsums2 to debsums is the ability to verify the md5sums online. The online verification is based on the control file within the debian packages, debsums2 uses a partial download to minimize the required traffic. Verification by a third party at a remote location is possible as well. In case of heavy paranoia or when md5sums are missing for a file, full package download and file verification is possible.
 
@@ -34,7 +34,7 @@ Future improvements:
 - RPM packages (file extensions: .rpm, .src.rpm)
 - integrating the new features with the hashdb
 
-##Requirements
+## Requirements
 
 ```bash
   pip3 install urllib3
@@ -42,7 +42,7 @@ Future improvements:
   apt-get install python3-apt
 ```
 
-##Testing
+## Testing
 
 If you want to test the project or check out the functionalities, I suggest that you do it using the Dockerfile that is provided in this repo. This enables you to have an out of the box environment where you have everything that is needed to run the project, moreover the environment is smaller and a complete system check can be performed in a reasonable amount of time.
 
@@ -62,7 +62,7 @@ docker build -t debsums2 .
 ```
 
 
-##Usage without the hashdb
+## Usage without the hashdb
 
 ### complete online system check
 
@@ -122,7 +122,7 @@ After the run you will need to analyze the log (`debsums2.log`), look for `trust
 
 
 
-###Example 1: Single file check, offline
+### Example 1: Single file check, offline
 
 ```
 $ python3 debsums2.py --file /bin/bash
@@ -136,7 +136,7 @@ No entries written to hashdb
 ```
 
 
-###Example 2: Single file check, online
+### Example 2: Single file check, online
 
 ```
 $ python3 debsums2.py --online --file /bin/bash
@@ -151,7 +151,7 @@ All is well, the md5sum of `/bin/bash` matches the md5sum within the control fil
 
 
 
-###Example 3: Package check, online
+### Example 3: Package check, online
 
 ```
 $ python3 debsums2.py --online --package bash
@@ -171,7 +171,7 @@ If you want to verify those files online, you will have to download the full pac
 
 
 
-###Example 4: Package check, online with full package download
+### Example 4: Package check, online with full package download
 
 ```
 $ python3 debsums2.py --online-full --package bash
@@ -194,7 +194,7 @@ which is correct, since I did change this file.
 
 
 
-###Example 5: Directory check, online
+### Example 5: Directory check, online
 
 ```
 $ python3 debsums2.py --directory=/bin --online
@@ -212,7 +212,7 @@ debsums2 stays on the device where directory is located, it will not follow moun
 
 
 
-###Example 6: Working with the hashdb
+### Example 6: Working with the hashdb
 
 ```
 $ python3 debsums2.py --directory=/bin --writedb
@@ -243,7 +243,7 @@ A md5sum is calculated for this file before and after the debsums2 run, you may 
 
 
 
-###Example 7: Running #6 again, adding online verification
+### Example 7: Running #6 again, adding online verification
 
 ```
 $ python3 debsums2.py --directory=/bin --writedb --online
@@ -265,7 +265,7 @@ debsums2 reads the stored information for this run, all files were checked befor
 
 
 
-###Example 8: Update the hashdb
+### Example 8: Update the hashdb
 
 ```
 $ python3 debsums2.py --update --online
@@ -282,7 +282,7 @@ This command only makes sense on a fully crawled system (`debsums2.py --director
 
 
 
-###Example 9: Verification of md5sums stored in hashdb
+### Example 9: Verification of md5sums stored in hashdb
 
 ```
 $ python3 debsums2.py --verify-online
@@ -301,7 +301,7 @@ If the number of mismatched md5sums is not null, check `debsums2.log` for detail
 
 This command is for everybody with a high paranoia level suspecting a deeply compromized system, therefore the command can and should be run on a different system, you will need to transfer the hashdb. Be aware that the download of all control files takes some time, you can watch the progress with `tail -f debsums2.log`.
 
-##Result codes
+## Result codes
 
 The result of an integrity check is printed as a single character. Detailed information is logged into `debsums2.log`.
 
