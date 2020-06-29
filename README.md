@@ -14,6 +14,7 @@ This is a fork of [debsums2](https://github.com/reox/debsums2), which is a pytho
 
 
 ##Introduction
+
 integrity checker is born as an extension of debsums2, which is in turn an extended version of the file integrity check tool 'debsums'. The major difference of debsums2 to debsums is the ability to verify the md5sums online. The online verification is based on the control file within the debian packages, debsums2 uses a partial download to minimize the required traffic. Verification by a third party at a remote location is possible as well. In case of heavy paranoia or when md5sums are missing for a file, full package download and file verification is possible.
 
 Moreover integrity_checker aims at automating integrity checks for as many parts of a system as possible, not just for deb packages.
@@ -34,6 +35,7 @@ Future improvements:
 - integrating the new features with the hashdb
 
 ##Requirements
+
 ```bash
   pip3 install urllib3
   pip3 install simplejson
@@ -41,6 +43,7 @@ Future improvements:
 ```
 
 ##Testing
+
 If you want to test the project or check out the functionalities, I suggest that you do it using the Dockerfile that is provided in this repo. This enables you to have an out of the box environment where you have everything that is needed to run the project, moreover the environment is smaller and a complete system check can be performed in a reasonable amount of time.
 
 - build the docker
