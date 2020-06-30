@@ -12,6 +12,7 @@ This is a fork of [debsums2](https://github.com/reox/debsums2), which is a pytho
 * [Usage without the hashdb](#usage-without-the-hashdb)
 * [Usage with the hashdb](#usage-with-the-hashdb)
 * [Result codes](#result-codes)
+* [Troubleshooting](#troubleshooting)
 
 ## Introduction
 
@@ -276,3 +277,7 @@ The result of an integrity check is printed as a single character. Detailed info
 * verified against local hash in the hashdb: dash (`-`) / `trustlevel=2`
 * not verified, probably new or changed file: plus (`+`) / `trustlevel=1`
 * verification failed, see integrity_checker.log for info/warning: exclamation mark (`!`) / `trustlevel=0`
+
+## Troubleshooting
+
+if you have some errors regarding `--no-python-version-warning`, you need to upgrade pip.
