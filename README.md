@@ -102,6 +102,7 @@ python3 integrity_checker.py --package python-pip python3-pip --online-full
 ```
 to check pip2 and pip3 (installed with apt).
 
+From the output of the command we can see that every file belonging to the pip2 and pip3 packages is verified correctly. Same info is provided by the log.
 [Output of the command & log](./example_outputs/01.apt_pip_pip3_of.md)
 
 If you use the option `--py-package-managers` make sure to check the integrity of what you specify as well.
@@ -111,20 +112,25 @@ If you use the option `--py-package-managers` make sure to check the integrity o
 ```bash
 python3 integrity_checker.py --complete-system-check --online --ignore-pyc
 ```
+The complete apt check has found 88 files that are not verified online, just locally. This is because they are configuration files under /etc, whose checksums are not stored in the deb package metadata. They would be probably correctly verified if we ran a `online-full` analysis.
+
+The python libraries analysis instead found 141 that are not found online. Mostly they are some files which are detected by pip, but were installed through apt (such as pip itself) and some metadatas (info directories) which I guess are not in the online library.
+It found also 20 files for which the verification fails. why?
 
 [Output of the command & log](./example_outputs/02.complete_system_check.md)
 
 This command will perform an online check of all the deb packages and all the python libraries.
 Moreover the `--ignore-pyc` option will ensure that the .pyc file are ignored when verifying hashes of the python libraries.
 
-### complete online deb packages check
+### complete online full deb packages check
 ```bash
-python3 integrity_checker.py --all-packages --online
+python3 integrity_checker.py --all-packages --online-full
 ```
 
+Now that we ran an online-full analysis we can see that all the files are verified correctly (almost)
 [Output of the command & log](./example_outputs/03.all_packages.md)
 
-This command will perform an online check of all the deb packages of the system.
+This command will perform an online-full check of all the deb packages of the system.
 
 ### complete online python libraries check
 ```bash
@@ -148,6 +154,8 @@ This command will perform an online check of the files belonging to the packages
 ```bash
 python3 integrity_checker.py --check-py simplejson urllib3 --ignore-pyc
 ```
+
+only the record file
 [Output of the command & log](./example_outputs/06.sel_py.md)
 This command will perform an online check of the files belonging to the libraries simplejson and urllib3.
 Moreover the `--ignore-pyc` option will ensure that the .pyc file are.
@@ -159,6 +167,7 @@ By default the script uses the command `pip2` and `pip3` to check for the python
 ```bash
 python3 integrity_checker.py --check-all-py --py-package-managers pip
 ```
+no ignore pyc
 [Output of the command & log](./example_outputs/07.change_pm.md)
 
 ### Single file check, offline
@@ -166,6 +175,7 @@ python3 integrity_checker.py --check-all-py --py-package-managers pip
 ```bash
 python3 integrity_checker.py --file /bin/bash
 ```
+comment
 [Output of the command & log](./example_outputs/08.sfc_off.md)
 ### Single file check, online
 
