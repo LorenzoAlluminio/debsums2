@@ -20,18 +20,18 @@ Moreover integrity_checker aims at automating integrity checks for as many parts
 
 There are 2 ways in which you can use the tool:
 - [without the hashdb](#usage-without-the-hashdb), by computing on the fly the hashes of files and comparing them online.
-- [with the hashdb](#usage-with-the-hashdb), by crawling the entire system (or part of it) and storing checksums in a json file, that later can be used as ground truth in order to detect if a file has been modified.
+- [with the hashdb](#usage-with-the-hashdb), by crawling the entire system (or part of it) and storing checksums in a json file, that later can be used as ground truth in order to detect if a file has been modified or added.
 
 Things that can be checked:
 - deb packages (inherited from debsums2)
 - python libraries (new feature)
 
 Future improvements:
-- git repositories
-- Arch Linux packages (ALPs, file extension: .pkg.tar.xz)
-- Gentoo packages (file extension: .tbz2)
-- RPM packages (file extensions: .rpm, .src.rpm)
-- integrating the new features with the hashdb
+- add support for git repositories ( an experimental version is implemented in the `git-support` branch, __but don't use it on your system, try it only in the docker for testing! It's not finished and there could be bugs that could damage your system.__)
+- integrating the python libraries with the hashdb
+- add support for Arch Linux packages (ALPs, file extension: .pkg.tar.xz)
+- add support for Gentoo packages (file extension: .tbz2)
+- add support for RPM packages (file extensions: .rpm, .src.rpm)
 
 ## Requirements
 
@@ -43,7 +43,12 @@ Future improvements:
 
 ## Testing
 
-If you want to test the project or check out the functionalities, I suggest that you do it using the Dockerfile that is provided in this repository. This enables you to have a small out of the box environment where you have everything that is needed to run the project and a complete system check can be performed in a reasonable amount of time.
+If you want to test the project or check out the functionalities, I suggest that you do it using the Dockerfile that is provided in this repository. This gives you a series of advantages:
+- enables you to have an out of the box environment where you have everything that is needed to run the project
+- a complete system check can be performed in a reasonable amount of time
+- __if you are trying the git repository checking functionality__, even if there is some bug your system won't be affected.
+
+Steps to spin up the docker:
 
 - build the docker
 ```bash
@@ -77,11 +82,6 @@ Moreover, since the python libraries are checked using pip, it's better to first
 python3 integrity_checker.py --package python3-pip python-pip --online-full
 ```
 If you use the option `--py-package-managers` make sure to check the integrity of what you specify as well.
-
-Moreover, since git repositories are checked using git and find, it's better to first check the integrity of it with:
-```bash
-python3 integrity_checker.py --package git find-utils coreutils --online-full
-```
 
 ### complete online system check
 
