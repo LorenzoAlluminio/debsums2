@@ -2,3 +2,4 @@ __pycache__/
 integrity_checker.log
 hashdb.json
 hashdb.json.bak
+integrity_checker_git_diffs/

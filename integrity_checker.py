@@ -37,6 +37,7 @@ import re
 import base64
 import tempfile
 import glob
+import shutil
 
 infodir = "/var/lib/dpkg/info"
 statusfile = "/var/lib/dpkg/status"
@@ -155,6 +156,16 @@ def parse_command_line():
         help='Ignore pyc files when checking python libraries',
         action='store_true')
     parser.add_argument(
+        '--check-git',
+        '--cgit',
+        nargs='+',
+        help='check a list of git repositories')
+    parser.add_argument(
+        '--check-all-git',
+        '--cagit',
+        help='check all the git repositories in the system',
+        action='store_true')
+    parser.add_argument(
         '--log-level',
         '--ll',
         help='Set log level (CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET)',
@@ -193,7 +204,9 @@ def parse_command_line():
             and args.check_py is None \
             and args.check_all_py == False \
             and args.all_packages == False \
-            and args.update == False:
+            and args.update == False \
+            and args.check_git is None \
+            and args.check_all_git == False:
         parser.print_help()
         sys.exit(1)
     return args
@@ -877,6 +890,100 @@ def check_py_libraries(package_manager,ignore_pyc,libraries_list=None):
 
     py_tmp_dir.cleanup()
 
+def check_git_repositories(git_repos=None):
+    git_tmp_dir = tempfile.TemporaryDirectory(dir = "/tmp")
+    folder_name = "integrity_checker_git_diffs"
+    if os.path.exists(folder_name):
+        shutil.rmtree(folder_name)
+    os.makedirs(folder_name)
+
+    git_total = 0
+    git_trustlevel_counters = [0,0,0,0,0]
+
+    if(git_repos is None):
+        git_repos = find_git_repos()
+
+    for git_repo in git_repos:
+        if not git_repo.endswith("/"):
+            git_repo += "/"
+        if os.path.exists(git_repo+".git"):
+            git_name = os.path.basename(os.path.normpath(git_repo))
+            # skip it self
+            if(git_name == "integrity_checker"):
+                continue
+            git_total += 1
+            git_output = subprocess.run(['git', '-C', git_repo , 'remote', 'show','origin'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if "(local out of date)" in git_output.stdout.decode("utf-8"):
+                git_trustlevel_counters[1] += 1
+                sys.stdout.write("+")
+                logging.info("git: repository " + git_repo + " is out of date")
+            else:
+                git_url = subprocess.run(['git', '-C', git_repo , 'config', '--get', 'remote.origin.url'], stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.decode('utf-8').replace("\n","")
+
+
+                if(git_url != ""):
+                    with open(os.devnull, "w") as f:
+                        res = subprocess.call(["git","-C",git_tmp_dir.name,"clone",git_url],stdout=f,stderr=f)
+                    res = subprocess.call(["cp","-r",git_repo,git_tmp_dir.name+"/local"+git_name+"/"])
+                    local_tmp_path = git_tmp_dir.name+"/local"+git_name
+                    online_tmp_path = git_tmp_dir.name+"/"+git_name
+                    res += subprocess.call(["mv",local_tmp_path+"/.git/objects",local_tmp_path+"/.git/objects.bak"])
+                    res += subprocess.call(["mv",online_tmp_path+"/.git/objects",online_tmp_path+"/.git/objects.bak"])
+                    res += subprocess.call(["mkdir",local_tmp_path+"/.git/objects"])
+                    res += subprocess.call(["mkdir",online_tmp_path+"/.git/objects"])
+                    packs_local = glob.glob(local_tmp_path+"/.git/objects.bak/pack/*.pack")
+                    packs_online = glob.glob(online_tmp_path+"/.git/objects.bak/pack/*.pack")
+                    for pack_local in packs_local:
+                        res += os.system("git unpack-objects < "+ pack_local + " >/dev/null 2>&1")
+                    for pack_online in packs_online:
+                        res += os.system("git unpack-objects < "+ pack_online + " >/dev/null 2>&1")
+                    objects_local = glob.glob(local_tmp_path+"/.git/objects.bak/[0-9][a-f]+")
+                    objects_online = glob.glob(online_tmp_path+"/.git/objects.bak/[0-9][a-f]+")
+                    for object_local in objects_local:
+                        res += subprocess.call(["cp","-r",object_local,object_local.replace("/objects.bak/","/objects/")])
+                    for object_online in objects_online:
+                        res += subprocess.call(["cp","-r",object_online,object_online.replace("/objects.bak/","/objects/")])
+                    if res == 0:
+                        git_diff = subprocess.run(['diff', '-Nrq', local_tmp_path+".git/objects" , online_tmp_path+"/.git/objects"], stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.decode('utf-8')
+                        if git_diff != "":
+                            git_trustlevel_counters[0] += 1
+                            git_diff_file_path = folder_name+"/"+git_name+".txt"
+                            text_file = open(git_diff_file_path, "w")
+                            text_file.write(git_diff)
+                            sys.stdout.write("!")
+                            logging.info(git_repo + " : Differences found with online repository. Diff saved in file " + git_diff_file_path)
+                            text_file.close()
+                        else:
+                            git_trustlevel_counters[4] += 1
+                            sys.stdout.write(".")
+                            logging.info(git_repo + " : Verification succeeded")
+
+                    else:
+                        sys.stdout.write("+")
+                        logging.info(git_repo + " : can't process local repo. Skipping verification")
+                        git_trustlevel_counters[1] += 1
+                else:
+                    sys.stdout.write("+")
+                    logging.info(git_repo + " : can't find online location. Skipping verification")
+                    git_trustlevel_counters[1] += 1
+        else:
+            logging.info(git_repo + " is not a git repository. Skipping verification")
+            print(git_repo + " is not a git repository. Skipping verification")
+
+    print()
+    print("\nSTATISTICS ON GIT REPOSITORIES ---------")
+    print("Total number of git repositories: " + str(git_total))
+    for i in range(len(git_trustlevel_counters)-1,-1,-1):
+        print("Number of git repositories with trustlevel = " + str(i) + " : " + str(git_trustlevel_counters[i]))
+
+    git_tmp_dir.cleanup()
+
+def find_git_repos():
+    git_find = subprocess.run(['find', '/', '-name' , '.git'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    git_repos_list = git_find.stdout.decode('utf-8').split("\n")[:-1]
+    git_repos_list = [repo[:-4] for repo in git_repos_list]
+    return git_repos_list
+
 def main():
     global py_total_files
     global py_verified_files
@@ -1195,6 +1302,12 @@ def main():
         print("Total number of files analyzed: " + str(py_total_files))
         for i in range(len(py_trustlevel_counters)-1,-1,-1):
             print("Number of files with trustlevel = " + str(i) + " : " + str(py_trustlevel_counters[i]))
+
+    if args.check_git is not None or args.check_all_git == True:
+        print()
+        print("START WORKING ON GIT REPOSITORIES ------------------------------------")
+        print()
+        check_git_repositories(args.check_git)
 
     if args.writedb == True:
         writeJSON(
