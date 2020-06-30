@@ -86,6 +86,8 @@ cat integrity_checker.log | grep trustlevel=0
 ```
 In this way you can restrict a lot the search for compromised files, since all the ones with trustlevel=4 are for sure unmodified.
 
+Please keep in mind that the integrity_checker.log is not recreated at each run, the information are always appended to it. You need to be aware of it because otherwise you may merge together results of different analysis without knowing it. If you want to consider the result of a single analysis, either do some filtering on the timestamp or delete the integrity_checker.log file before starting the script.
+
 ## Usage without the hashdb
 
 Since the python libraries are checked using pip, it's better to first check the integrity of it with:
