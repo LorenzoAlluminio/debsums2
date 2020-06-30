@@ -73,7 +73,7 @@ docker build -t integrity_checker .
 
 Both when checking deb packages or pip libraries, the tool prints a series of sections:
 1. a reminder of the result codes, that you can check also [here](#result-codes)
-2. Then it starts verifying and printing the corresponding symbol to screen. This enables you to see the progress of the tool and see visually if there are "weird" things (e.g. a lot of subsequent `+` symbols --> probably there is a problem verifying an entire package, such as the online location of it can't be found)
+2. Then it starts verifying files and printing the corresponding symbols to screen. This enables you to see the progress of the tool and check visually if there are "weird" things (e.g. a lot of subsequent `+` symbols --> probably there is a problem verifying an entire package, such as the online location of it can't be found)
 3. Statistics about the analysis the has been ran.
 
 When the script terminates, you can then check the integrity_checker.log to look for file with different trustlevels:
