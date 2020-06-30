@@ -7,18 +7,22 @@ plus (+) / trustlevel=1                    	not verified, probably new or change
 exclamation mark (!) / trustlevel=0        	verification failed, see integrity_checker.log for info/warning
 
 
-START WORKING ON PY PACKAGES ------------------------------------
+START WORKING ON APT PACKAGES / FILES ------------------------------------
 
-Checking pip3 libraries -----
-++++..!.....................................................................................................................................................................................................................................................................................................................................................................................
+Entries read from /var/lib/dpkg/info:      	15555
+Total files in package python-pip	134
+Number of new files in package python-pip	134
+Total files in package python3-pip	91
+Number of new files in package python3-pip	91
+.................................................................................................................................................................................................................................
+225 changes to hashdb.
 
-
-STATISTICS ON PY PACKAGES ---------
-Total number of files analyzed: 380
-Number of files with trustlevel = 4 : 375
+STATISTICS ON APT PACKAGES / FILES ---------
+Total number of files analyzed: 225
+Number of files with trustlevel = 4 : 225
 Number of files with trustlevel = 3 : 0
 Number of files with trustlevel = 2 : 0
-Number of files with trustlevel = 1 : 4
-Number of files with trustlevel = 0 : 1
+Number of files with trustlevel = 1 : 0
+Number of files with trustlevel = 0 : 0
 
 No entries written to hashdb

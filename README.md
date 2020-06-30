@@ -97,17 +97,11 @@ Since the python libraries are checked using pip, it's better to first check the
 The procedure is different based on how you installed pip on your system.
 For the testing docker you should do:
 ```bash
-python3 integrity_checker.py --package python3-pip --online-full
+python3 integrity_checker.py --package python-pip python3-pip --online-full
 ```
-to check pip3 (installed with apt).
+to check pip2 and pip3 (installed with apt).
 
-[Output of the command & log](./example_outputs/01.apt_pip3_of.md)
-```bash
-python3 integrity_checker.py --check-py pip --ignore-pyc --py-package-managers pip3
-```
-to check for pip2 (installed with pip3).
-
-[Output of the command & log](./example_outputs/02.pip3_pip2.md)
+[Output of the command & log](./example_outputs/01.apt_pip_pip3_of.md)
 
 If you use the option `--py-package-managers` make sure to check the integrity of what you specify as well.
 
