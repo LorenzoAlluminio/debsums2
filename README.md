@@ -16,18 +16,19 @@ This is a fork of [debsums2](https://github.com/reox/debsums2), which is a pytho
 ## Introduction
 
 integrity checker is born as an extension of debsums2, which is in turn an extended version of the file integrity check tool 'debsums'.
+
 First in order to understand what was the purpose of debsusm2, I quote from their readme.md:
-> The major difference of debsums2 to debsums is the ability to verify the md5sums online. The online verification is based on the control file within the debian packages, moreover debsums2 uses a partial download to minimize the required traffic. Verification by a third party at a remote location is possible as well. In case of heavy paranoia or when md5sums are missing for a file, full package download and file verification is possible.
+> The major difference of debsums2 to debsums is the ability to verify the md5sums online. The online verification is based on the control file within the debian packages, debsums2 uses a partial download to minimize the required traffic. Verification by a third party at a remote location is possible as well. In case of heavy paranoia or when md5sums are missing for a file, full package download and file verification is possible.
 
-Moreover integrity_checker aims at automating integrity checks for as many parts of a system as possible, not just for deb packages.
-
-There are 2 ways in which you can use the tool:
-- [without the hashdb](#usage-without-the-hashdb), by computing on the fly the hashes of files and comparing them online.
-- [with the hashdb](#usage-with-the-hashdb), by crawling the entire system (or part of it) and storing checksums in a json file, that later can be used as ground truth in order to detect if a file has been modified or added.
+In addition to this functionality, integrity_checker aims at automating integrity checks for as many parts of a system as possible, not just for deb packages.
 
 Things that can be checked:
 - deb packages (inherited from debsums2)
 - python libraries (new feature)
+
+There are 2 ways in which you can use the tool:
+- [without the hashdb](#usage-without-the-hashdb), by computing on the fly the hashes of files and comparing them online.
+- [with the hashdb](#usage-with-the-hashdb), by crawling the entire system (or part of it) and storing checksums in a json file, that later can be used as ground truth in order to detect if a file has been modified/added/removed.
 
 Future improvements:
 - add support for git repositories ( an experimental version is implemented in the `git-support` branch, __but don't use it on your system, try it only in the docker for testing! It's not finished and there could be bugs that could damage your system.__)
