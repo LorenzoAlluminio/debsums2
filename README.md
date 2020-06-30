@@ -72,6 +72,17 @@ cat integrity_checker.log | grep trustlevel=0
 ```
 This is useful for every command that you can launch.
 
+Moreover, since the python libraries are checked using pip, it's better to first check the integrity of it with:
+```bash
+python3 integrity_checker.py --package python3-pip python-pip --online-full
+```
+If you use the option `--py-package-managers` make sure to check the integrity of what you specify as well.
+
+Moreover, since git repositories are checked using git and find, it's better to first check the integrity of it with:
+```bash
+python3 integrity_checker.py --package git find-utils coreutils --online-full
+```
+
 ### complete online system check
 
 ```bash
