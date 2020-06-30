@@ -794,7 +794,7 @@ def handle_downloaded_package(package_manager,py_filename,py_package,py_package_
                     logging.info(package_manager+":"+py_full_path + ": trustlevel=0, package: " + py_package[0] + "==" + py_package[1])
                     py_trustlevel_counters[0] += 1
             except:
-                logging.debug(package_manager+":file " + py_package_file + " found in output of "+ package_manager +" show -f " + py_package[0] + ", but not found on the local system")
+                logging.error(package_manager+":file " + py_package_file + " found in output of "+ package_manager +" show -f " + py_package[0] + ", but not found on the local system")
                 py_total_files -= 1
         else:
             sys.stdout.write("+")
@@ -850,14 +850,14 @@ def handle_package(package_manager,ignore_pyc,py_tmp_dir,py_package):
             if(py_filename.endswith(".zip")):
                 handle_downloaded_package(package_manager,py_filename,py_package,py_package_files,py_package_location,py_tmp_dir,ignore_pyc,"zip")
         else:
-            logging.info(package_manager+":Cannot download package from pipy for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
+            logging.error(package_manager+":Cannot download package from pipy for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
             #print(package_manager+":Cannot download package from pipy for " + py_package[0] + "==" + py_package[1] + ". skipping verification")
             for py_package_file in py_package_files:
                 py_full_path = os.path.abspath(py_package_location + "/" + py_package_file)
                 if(not py_full_path.endswith(".pyc")):
-                    logging.info(py_full_path + ": trustlevel=1, package: " + py_package[0] + "==" + py_package[1])
+                    logging.info(package_manager+":"+py_full_path + ": trustlevel=1, package: " + py_package[0] + "==" + py_package[1])
     else:
-        logging.info(package_manager+":Library " + py_package[0] +" not found on the system\n")
+        logging.error(package_manager+":Library " + py_package[0] +" not found on the system\n")
         #print(package_manager+":Library not found on the system " + py_package[0])
 
 
