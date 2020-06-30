@@ -1,0 +1,24 @@
+
+Result codes reminders:
+dot (.) / trustlevel=4                     	verified against online hash
+star (*) / trustlevel=3                    	verified against local hash in the system
+star (-) / trustlevel=2                    	verified against local hash in the hashdb
+plus (+) / trustlevel=1                    	not verified, probably new or changed file
+exclamation mark (!) / trustlevel=0        	verification failed, see integrity_checker.log for info/warning
+
+
+START WORKING ON PY PACKAGES ------------------------------------
+
+Checking pip3 libraries -----
+++++..!.....................................................................................................................................................................................................................................................................................................................................................................................
+
+
+STATISTICS ON PY PACKAGES ---------
+Total number of files analyzed: 380
+Number of files with trustlevel = 4 : 375
+Number of files with trustlevel = 3 : 0
+Number of files with trustlevel = 2 : 0
+Number of files with trustlevel = 1 : 4
+Number of files with trustlevel = 0 : 1
+
+No entries written to hashdb

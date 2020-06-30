@@ -1041,13 +1041,17 @@ def main():
         fnewSet = set(fsList).difference(getset(hdList, 'filename'))
 
     if args.package is not None:
+        previous_total = 0
+        previous_new = 0
         for current_package in args.package:
             for i in extract(iList, 'package', value=current_package, exactmatch=True):
                 if os.path.exists(i['filename']):
                     fsList.append(i['filename'])
-            print("Total files in package " + current_package + '\t' + str(len(fsList)))
+            print("Total files in package " + current_package + '\t' + str(len(fsList)-previous_total))
+            previous_total = len(fsList)
             fnewSet = set(fsList).difference(getset(hdList, 'filename'))
-            print("Number of new files in package " + current_package + '\t' + str(len(fnewSet)))
+            print("Number of new files in package " + current_package + '\t' + str(len(fnewSet)-previous_new))
+            previous_new = len(fnewSet)
 
     if args.all_packages == True:
         for current_package in aptcache.keys():

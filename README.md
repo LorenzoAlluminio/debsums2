@@ -89,18 +89,25 @@ In this way you can restrict a lot the search for compromised files, since all t
 
 Please keep in mind that the integrity_checker.log is not recreated at each run, the information are always appended to it. You need to be aware of it because otherwise you may merge together results of different analysis without knowing it. If you want to consider the result of a single analysis, either do some filtering on the timestamp or delete the integrity_checker.log file before starting the script.
 
-If you want to see some example output check out the links provided for each example.
+If you want to see some example output check out the links provided for each example. The commands are run in the testing docker.
 
 ## Usage without the hashdb
 
-Since the python libraries are checked using pip, it's better to first check the integrity of it with:
+Since the python libraries are checked using pip, it's better to first check the integrity of it.
+The procedure is different based on how you installed pip on your system.
+For the testing docker you should do:
 ```bash
-python3 integrity_checker.py --package python3-pip python-pip --online-full
+python3 integrity_checker.py --package python3-pip --online-full
 ```
-If you use the option `--py-package-managers` make sure to check the integrity of what you specify as well.
-
+to check pip3 (installed with apt).
+[Output of the command & log](./example_outputs/01.apt_pip3_pip_of.md)
+```bash
+python3 integrity_checker.py --check-py pip --ignore-pyc --py-package-managers pip3
+```
+to check for pip2 (installed with pip3).
 [Output of the command & log](./example_outputs/01.apt_pip3_pip_of.md)
 
+If you use the option `--py-package-managers` make sure to check the integrity of what you specify as well.
 
 ### complete online system check
 
