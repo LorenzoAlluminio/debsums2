@@ -67,6 +67,7 @@ docker build -t integrity_checker .
  - access the docker and run command from there
  ```bash
  docker exec -it integrity_checker /bin/bash
+ cd integrity_checker
 ```
 
 ## How to interpret the output
@@ -97,6 +98,9 @@ Since the python libraries are checked using pip, it's better to first check the
 python3 integrity_checker.py --package python3-pip python-pip --online-full
 ```
 If you use the option `--py-package-managers` make sure to check the integrity of what you specify as well.
+
+- [Output of the command](./example_output/01.apt_pip3_pip_of/output)
+- [Log](./example_output/01.apt_pip3_pip_of/log)
 
 ### complete online system check
 
