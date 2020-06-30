@@ -99,8 +99,8 @@ python3 integrity_checker.py --package python3-pip python-pip --online-full
 ```
 If you use the option `--py-package-managers` make sure to check the integrity of what you specify as well.
 
-- [Output of the command](./example_output/01.apt_pip3_pip_of/output.md)
-- [Log](./example_output/01.apt_pip3_pip_of/log.md)
+[Output of the command & log](./example_outputs/01.apt_pip3_pip_of.md)
+
 
 ### complete online system check
 
