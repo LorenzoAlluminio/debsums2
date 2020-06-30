@@ -101,7 +101,7 @@ python3 integrity_checker.py --package python3-pip --online-full
 ```
 to check pip3 (installed with apt).
 
-[Output of the command & log](./example_outputs/01.apt_pip3_pip_of.md)
+[Output of the command & log](./example_outputs/01.apt_pip3_of.md)
 ```bash
 python3 integrity_checker.py --check-py pip --ignore-pyc --py-package-managers pip3
 ```
