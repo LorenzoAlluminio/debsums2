@@ -50,7 +50,7 @@ Future improvements:
 If you want to test the project or check out the functionalities, I suggest that you do it using the Dockerfile that is provided in this repository. This gives you a series of advantages:
 - enables you to have an out of the box environment where you have everything that is needed to run the project
 - a complete system check can be performed in a reasonable amount of time
-- __if you are trying the git repository checking functionality__, even if there is some bug your system won't be affected.
+- __if you are trying the experimental git repository checking functionality__, even if there is some bug in it your system won't be affected.
 
 Steps to spin up the docker:
 
