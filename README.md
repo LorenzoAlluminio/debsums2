@@ -8,6 +8,7 @@ This is a fork of [debsums2](https://github.com/reox/debsums2), which is a pytho
 * [Introduction](#introduction)
 * [Requirements](#requirements)
 * [Testing](#testing)
+* [How to interpret the output](#how-to-interpret-the-output)
 * [Usage without the hashdb](#usage-without-the-hashdb)
 * [Usage with the hashdb](#usage-with-the-hashdb)
 * [Result codes](#result-codes)
@@ -65,9 +66,14 @@ docker build -t integrity_checker .
  docker exec -it integrity_checker /bin/bash
 ```
 
-## Usage without the hashdb
+## How to interpret the output
 
-When the script terminates, you can check the integrity_checker.log to look for file with different trustlevels:
+Both when checking apt packages or pip libraries, the tool prints a series of sections:
+1. a reminder of the result codes, that you can check also [here](#result-codes)
+2. Then it starts verifying and printing the corresponding symbol to screen. This enables you to see the progress of the tool and see visually if there are "weird" things (e.g. a lot of subsequent `+` symbols --> probably there is a problem verifying an entire package, such as the online location of it can't be found)
+3. Statistics about the analysis the has been ran.
+
+When the script terminates, you can then check the integrity_checker.log to look for file with different trustlevels:
 ```bash
 cat integrity_checker.log | grep trustlevel=4
 cat integrity_checker.log | grep trustlevel=3
@@ -75,9 +81,11 @@ cat integrity_checker.log | grep trustlevel=2
 cat integrity_checker.log | grep trustlevel=1
 cat integrity_checker.log | grep trustlevel=0
 ```
-This is useful for every command that you can launch.
+In this way you can restrict a lot the search for compromised files, since all the ones with trustlevel=4 are for sure unmodified.
 
-Moreover, since the python libraries are checked using pip, it's better to first check the integrity of it with:
+## Usage without the hashdb
+
+Since the python libraries are checked using pip, it's better to first check the integrity of it with:
 ```bash
 python3 integrity_checker.py --package python3-pip python-pip --online-full
 ```
@@ -233,8 +241,8 @@ This command is for everybody with a high paranoia level suspecting a deeply com
 
 The result of an integrity check is printed as a single character. Detailed information is logged into `integrity_checker.log`.
 
-* verified online against debian package: dot (`.`) / `trustlevel=4`
-* verified locally against debian package: star (`*`) / `trustlevel=3`
-* verified locally against the hashdb, needs `--writedb` in a previous integrity_checker run: dash (`-`) / `trustlevel=2`
+* verified against online hash: dot (`.`) / `trustlevel=4`
+* verified against local hash in the system: star (`*`) / `trustlevel=3`
+* verified against local hash in the hashdb: dash (`-`) / `trustlevel=2`
 * not verified, probably new or changed file: plus (`+`) / `trustlevel=1`
 * verification failed, see integrity_checker.log for info/warning: exclamation mark (`!`) / `trustlevel=0`
