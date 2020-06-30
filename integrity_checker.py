@@ -904,9 +904,9 @@ def main():
 
     print()
     print("Result codes reminders:")
-    print("dot (.) / trustlevel=4                     " + '\t' + "verified online against debian package")
-    print("star (*) / trustlevel=3                    " + '\t' + "verified locally against debian package")
-    print("star (-) / trustlevel=2                    " + '\t' + "verified locally against the hashdb")
+    print("dot (.) / trustlevel=4                     " + '\t' + "verified against online hash")
+    print("star (*) / trustlevel=3                    " + '\t' + "verified against local hash in the system")
+    print("star (-) / trustlevel=2                    " + '\t' + "verified against local hash in the hashdb")
     print("plus (+) / trustlevel=1                    " + '\t' + "not verified, probably new or changed file")
     print("exclamation mark (!) / trustlevel=0        " + '\t' + "verification failed, see integrity_checker.log for info/warning")
     print()
@@ -1181,12 +1181,10 @@ def main():
                 md5difference[0] +
                 ": Online md5sum differs to md5sum in hashdb")
 
-    if(args.check_all_py == True or args.check_py is not None):
+    if args.check_all_py == True or args.check_py is not None:
         print()
         print("START WORKING ON PY PACKAGES ------------------------------------")
         print()
-
-    if args.check_all_py == True or args.check_py is not None:
         for py_package_manager in args.py_package_managers:
             if(os.system("command -v "+ py_package_manager +" >/dev/null 2>&1") == 0):
                 print("Checking "+ py_package_manager +" libraries -----")
