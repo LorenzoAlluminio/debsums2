@@ -122,7 +122,7 @@ The complete apt check has found 88 files that are not verified online, just loc
 
 The python libraries analysis instead found 141 files that are not found online. Mostly they are some files which are detected by pip, but were installed through apt (such as pip itself) and some metadata (\*-info directories) which in the local system are under the path `*-egg-info*` while online they are under `*-dist-info*`. A possible future improvement could be to verify if this mapping is valid for all libraries and if yes, check the corresponding file.
 
-It found also 20 files for which the verification fails. This is probably because the content of these scripts is changed based on where you install the library, but I'm not 100% sure because I didn't check the problem of each script due to lack of time. Another improvment could be assess why each verification failed and see if it is a problem of the script or of the specific library.
+It found also 20 files for which the verification fails. This is probably because the content of these scripts is changed based on where you install the library, but I'm not 100% sure because I didn't check the problem of each script due to lack of time. Another improvement could be assess why each verification failed and see if it is a problem of the script or of the specific library.
 
 [Output of the command & log](./example_outputs/02.complete_system_check.md)
 
@@ -167,7 +167,7 @@ Moreover the `--ignore-pyc` option will ensure that the .pyc file are.
 python3 integrity_checker.py --check-py simplejson urllib3 --ignore-pyc
 ```
 
-We can see the all files are verified correctly except for the file in the `*-info` directories which I mentioned earlier and the RECORD file, which is a file that contains hashes of the other file in the local system. A future improvement could be to use also this file to verify in order to save bandwidth and to be able to verify stuff locally (like the original `debsums` does).
+We can see the all files are verified correctly except for the file in the `*-info` directories which I mentioned earlier and the RECORD file, which is a file that contains hashes of the other files belonging to the library in the local system. A future improvement could be to use also this file to verify in order to save bandwidth and to be able to verify stuff locally (like the original `debsums` does).
 
 [Output of the command & log](./example_outputs/06.sel_py.md)
 
@@ -336,9 +336,9 @@ I'm going to do a small writeup of the problem I encountered and how I tried to 
 4. How to detect those attacks?
     1. use git status to see if there are uncommitted changes
     2. compare commit history of local repo with online repo
-    3.  compare the whole ".git" folder between the local repo and the online repo.
+    3. compare the whole ".git" folder between the local repo and the online repo.
     4. compare the installed files with the online reference
 
 I implemented point 1 and 2, then I moved to implementing point 4.3.
-I encountered some problems while doing so, the first one is that the `.git` directory is different even for the same repo cloned 2 times subsequently. Therefore I thought about comparing only the `.git/objects` subdirectory. This directory contains all the compresse "snapshots" taken by git. The problem now is that sometimes git packs a lot of object into a single .pack file and this causes problem when comparing because you need to check if there are .pack files and if yes unpack them, otherwise you may have 1 repo in which objects are not packed and 1 repo where objects are packed.
-I tried to implement it but sometimes it works and sometimes not, therefore probably there is still something that I'm missing and I feel like I should look more deeper in how the ".git" directory works to be able to implement it in an efficient way.
+I encountered some problems while doing so, the first one is that the `.git` directory is different even for the same repo cloned 2 times subsequently. Therefore I thought about comparing only the `.git/objects` subdirectories. This directory contains all the compressed "snapshots" taken by git. The problem now is that sometimes git packs a lot of object into a single .pack file and this causes issues when comparing, because you need to check if there are .pack files and if yes unpack them, otherwise you may have 1 repo in which objects are not packed and 1 repo where objects are packed.
+I implemented it this way, but it is painfully slow because it takes time clone each repo needed. Moreover I didn't test it a lot and I'm not sure that this will effectively detect any modifications to the git repo. I feel like I should look more deeper in how the ".git" directory works to be able to implement it in an efficient and secure way.
