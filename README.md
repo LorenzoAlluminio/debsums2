@@ -167,7 +167,7 @@ Moreover the `--ignore-pyc` option will ensure that the .pyc file are.
 python3 integrity_checker.py --check-py simplejson urllib3 --ignore-pyc
 ```
 
-We can see the all files are verified correctly except for the file in the `*-info` directories which I mentioned earlier and the RECORD file, which is a file that contains hashes of the other file in the local system. A future improvement could be to use also this file to verify in order to save bandwidth and to be able to verify stuff locally (like the original `debsums` does).
+We can see the all files are verified correctly except for the file in the `*-info` directories which I mentioned earlier and the RECORD file, which is a file that contains hashes of the other files belonging to the library in the local system. A future improvement could be to use also this file to verify in order to save bandwidth and to be able to verify stuff locally (like the original `debsums` does).
 
 [Output of the command & log](./example_outputs/06.sel_py.md)
 
