@@ -329,15 +329,15 @@ I'm going to do a small writeup of the problem I encountered and how I tried to 
 `git remote show origin | grep "(local out of date)"` does the job.
 
 3. In which way a malware could modify a git repo for some malicious purpose?
-    3.1 modify a file and leave it uncommitted
-    3.2 modify a file and commit it
-    3.3 modify the previous commits (the history of the repo) in such a way that the current files result modified (not sure it's feasible)
-    3.4 modify the repo, install the library, undo the modification
+    1. modify a file and leave it uncommitted
+    2. modify a file and commit it
+    3. modify the previous commits (the history of the repo) in such a way that the current files result modified (not sure it's feasible)
+    4. modify the repo, install the library, undo the modification
 4. How to detect those attacks?
-    4.1 use git status to see if there are uncommitted changes
-    4.2 compare commit history of local repo with online repo
-    4.3  compare the whole ".git" folder between the local repo and the online repo.
-    4.4 compare the installed files with the online reference
+    1. use git status to see if there are uncommitted changes
+    2. compare commit history of local repo with online repo
+    3.  compare the whole ".git" folder between the local repo and the online repo.
+    4. compare the installed files with the online reference
 
 I implemented point 1 and 2, then I moved to implementing point 4.3.
 I encountered some problems while doing so, the first one is that the `.git` directory is different even for the same repo cloned 2 times subsequently. Therefore I thought about comparing only the `.git/objects` subdirectory. This directory contains all the compresse "snapshots" taken by git. The problem now is that sometimes git packs a lot of object into a single .pack file and this causes problem when comparing because you need to check if there are .pack files and if yes unpack them, otherwise you may have 1 repo in which objects are not packed and 1 repo where objects are packed.
