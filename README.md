@@ -13,6 +13,8 @@ This is a fork of [debsums2](https://github.com/reox/debsums2), which is a pytho
 * [Usage with the hashdb](#usage-with-the-hashdb)
 * [Result codes](#result-codes)
 * [Troubleshooting](#troubleshooting)
+* [Experimental git repo checking functionality
+](#experimental-git-repo-checking-functionality)
 
 ## Introduction
 
@@ -310,3 +312,28 @@ The result of an integrity check is printed as a single character. Detailed info
 ## Troubleshooting
 
 if you have some errors regarding `--no-python-version-warning`, you need to upgrade pip.
+
+## Experimental git repo checking functionality
+
+The progress on this functionality can be seen on the `git-support` branch. I didn't merge this code into master because it is still not finished and could have some bugs that could potentially damage your system. If you want to try it, do so in the testing docker.
+
+I'm going to do a small writeup of the problem I encountered and how I tried to solve them, what worked and what not.
+
+1. How to find the git repos?
+`find / -name ".git"` does the job.
+2. Check if the repo is up to up to date
+`git remote show origin | grep "(local out of date)"` does the job.
+3. In which way a malware could modify a git repo for some malicious purpose?
+    3.1 modify a file and leave it uncommitted
+    3.2 modify a file and commit it
+    3.3 modify the previous commits (the history of the repo) in such a way that the current files result modified (not sure it's feasible)
+    3.4 modify the repo, install the library, undo the modification
+4. How to detect those attacks?
+    4.1 use git status to see if there are uncommitted changes
+    4.2 compare commit history of local repo with online repo
+    4.3  compare the whole ".git" folder between the local repo and the online repo.
+    4.4 compare the installed files with the online reference
+
+I implemented point 1 and 2, then I moved to implementing point 4.3.
+I encountered some problems while doing so, the first one is that the `.git` directory is different even for the same repo cloned 2 times subsequently. Therefore I thought about comparing only the `.git/objects` subdirectory. This directory contains all the compresse "snapshots" taken by git. The problem now is that sometimes git packs a lot of object into a single .pack file and this causes problem when comparing because you need to check if there are .pack files and if yes unpack them, otherwise you may have 1 repo in which objects are not packed and 1 repo where objects are packed.
+I tried to implement it but sometimes it works and sometimes not, therefore probably there is still something that I'm missing and I feel like I should look more deeper in how the ".git" directory works to be able to implement it in an efficient way.
