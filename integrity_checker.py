@@ -907,7 +907,7 @@ def check_git_repositories(git_repos=None):
         if not git_repo.endswith("/"):
             git_repo += "/"
         if os.path.exists(git_repo+".git"):
-            git_name = os.path.basename(os.path.normpath(git_repo))
+            git_name = os.path.basename(os.path.normpath(git_repo)).replace(".","")
             # skip it self
             if(git_name == "integrity_checker"):
                 continue
@@ -919,45 +919,56 @@ def check_git_repositories(git_repos=None):
                 logging.info("git: repository " + git_repo + " is out of date")
             else:
                 git_url = subprocess.run(['git', '-C', git_repo , 'config', '--get', 'remote.origin.url'], stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.decode('utf-8').replace("\n","")
-
-
                 if(git_url != ""):
-                    with open(os.devnull, "w") as f:
-                        res = subprocess.call(["git","-C",git_tmp_dir.name,"clone",git_url],stdout=f,stderr=f)
-                    res = subprocess.call(["cp","-r",git_repo,git_tmp_dir.name+"/local"+git_name+"/"])
-                    local_tmp_path = git_tmp_dir.name+"/local"+git_name
-                    online_tmp_path = git_tmp_dir.name+"/"+git_name
-                    res += subprocess.call(["mv",local_tmp_path+"/.git/objects",local_tmp_path+"/.git/objects.bak"])
-                    res += subprocess.call(["mv",online_tmp_path+"/.git/objects",online_tmp_path+"/.git/objects.bak"])
-                    res += subprocess.call(["mkdir",local_tmp_path+"/.git/objects"])
-                    res += subprocess.call(["mkdir",online_tmp_path+"/.git/objects"])
-                    packs_local = glob.glob(local_tmp_path+"/.git/objects.bak/pack/*.pack")
-                    packs_online = glob.glob(online_tmp_path+"/.git/objects.bak/pack/*.pack")
-                    for pack_local in packs_local:
-                        res += os.system("git unpack-objects < "+ pack_local + " >/dev/null 2>&1")
-                    for pack_online in packs_online:
-                        res += os.system("git unpack-objects < "+ pack_online + " >/dev/null 2>&1")
-                    objects_local = glob.glob(local_tmp_path+"/.git/objects.bak/[0-9][a-f]+")
-                    objects_online = glob.glob(online_tmp_path+"/.git/objects.bak/[0-9][a-f]+")
-                    for object_local in objects_local:
-                        res += subprocess.call(["cp","-r",object_local,object_local.replace("/objects.bak/","/objects/")])
-                    for object_online in objects_online:
-                        res += subprocess.call(["cp","-r",object_online,object_online.replace("/objects.bak/","/objects/")])
-                    if res == 0:
-                        git_diff = subprocess.run(['diff', '-Nrq', local_tmp_path+".git/objects" , online_tmp_path+"/.git/objects"], stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.decode('utf-8')
-                        if git_diff != "":
-                            git_trustlevel_counters[0] += 1
-                            git_diff_file_path = folder_name+"/"+git_name+".txt"
-                            text_file = open(git_diff_file_path, "w")
-                            text_file.write(git_diff)
-                            sys.stdout.write("!")
-                            logging.info(git_repo + " : Differences found with online repository. Diff saved in file " + git_diff_file_path)
-                            text_file.close()
-                        else:
-                            git_trustlevel_counters[4] += 1
-                            sys.stdout.write(".")
-                            logging.info(git_repo + " : Verification succeeded")
-
+                    # this while true is just a trick to be able to exit the processing at any time a command return 0
+                    # nasty but it works
+                    while True:
+                        with open(os.devnull, "w") as f:
+                            res = subprocess.call(["git","-C",git_tmp_dir.name,"clone",git_url],stdout=f,stderr=f)
+                            if res!=0: break
+                            res = subprocess.call(["cp","-r",git_repo,git_tmp_dir.name+"/local"+git_name+"/"],stdout=f,stderr=f)
+                            if res!=0: break
+                            local_tmp_path = git_tmp_dir.name+"/local"+git_name
+                            online_tmp_path = git_tmp_dir.name+"/"+git_name
+                            res = subprocess.call(["mv",local_tmp_path+"/.git/objects",local_tmp_path+"/.git/objects.bak"],stdout=f,stderr=f)
+                            if res!=0: break
+                            res = subprocess.call(["mv",online_tmp_path+"/.git/objects",online_tmp_path+"/.git/objects.bak"],stdout=f,stderr=f)
+                            if res!=0: break
+                            res = subprocess.call(["mkdir",local_tmp_path+"/.git/objects"],stdout=f,stderr=f)
+                            if res!=0: break
+                            res = subprocess.call(["mkdir",online_tmp_path+"/.git/objects"],stdout=f,stderr=f)
+                            if res!=0: break
+                            packs_local = glob.glob(local_tmp_path+"/.git/objects.bak/pack/*.pack")
+                            packs_online = glob.glob(online_tmp_path+"/.git/objects.bak/pack/*.pack")
+                            for pack_local in packs_local:
+                                res += os.system("git unpack-objects < "+ pack_local + " >/dev/null 2>&1")
+                            if res!=0: break
+                            for pack_online in packs_online:
+                                res += os.system("git unpack-objects < "+ pack_online + " >/dev/null 2>&1")
+                            if res!=0: break
+                            objects_local = glob.glob(local_tmp_path+"/.git/objects.bak/[0-9][a-f]+")
+                            objects_online = glob.glob(online_tmp_path+"/.git/objects.bak/[0-9][a-f]+")
+                            for object_local in objects_local:
+                                res += subprocess.call(["cp","-r",object_local,object_local.replace("/objects.bak/","/objects/")],stdout=f,stderr=f)
+                            if res!=0: break
+                            for object_online in objects_online:
+                                res += subprocess.call(["cp","-r",object_online,object_online.replace("/objects.bak/","/objects/")],stdout=f,stderr=f)
+                            if res!=0: break
+                        if res == 0:
+                            git_diff = subprocess.run(['diff', '-Nrq', local_tmp_path+".git/objects" , online_tmp_path+"/.git/objects"], stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.decode('utf-8')
+                            if git_diff != "":
+                                git_trustlevel_counters[0] += 1
+                                git_diff_file_path = folder_name+"/"+git_name+".txt"
+                                text_file = open(git_diff_file_path, "w")
+                                text_file.write(git_diff)
+                                sys.stdout.write("!")
+                                logging.info(git_repo + " : Differences found with online repository. Diff saved in file " + git_diff_file_path)
+                                text_file.close()
+                            else:
+                                git_trustlevel_counters[4] += 1
+                                sys.stdout.write(".")
+                                logging.info(git_repo + " : Verification succeeded")
+                        break
                     else:
                         sys.stdout.write("+")
                         logging.info(git_repo + " : can't process local repo. Skipping verification")
