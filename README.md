@@ -110,18 +110,18 @@ If you use the option `--py-package-managers` make sure to check the integrity o
 
 ### complete online system check
 
+This command will perform an online check of all the deb packages and all the python libraries.
+Moreover the `--ignore-pyc` option will ensure that the .pyc file are ignored when verifying hashes of the python libraries.
+
 ```bash
 python3 integrity_checker.py --complete-system-check --online --ignore-pyc
 ```
-The complete apt check has found 88 files that are not verified online, just locally. This is because they are configuration files under /etc, whose checksums are not stored in the deb package metadata. They would be probably correctly verified if we ran a `online-full` analysis.
+The complete apt check has found 88 files that are not verified online, just locally. This is because they are configuration files under /etc, whose checksums are not stored in the deb package metadata. They would be correctly verified if we ran an `online-full` analysis.
 
 The python libraries analysis instead found 141 that are not found online. Mostly they are some files which are detected by pip, but were installed through apt (such as pip itself) and some metadatas (info directories) which I guess are not in the online library.
 It found also 20 files for which the verification fails. why?
 
 [Output of the command & log](./example_outputs/02.complete_system_check.md)
-
-This command will perform an online check of all the deb packages and all the python libraries.
-Moreover the `--ignore-pyc` option will ensure that the .pyc file are ignored when verifying hashes of the python libraries.
 
 ### complete online full deb packages check
 ```bash
