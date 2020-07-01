@@ -103,9 +103,10 @@ python3 integrity_checker.py --package python-pip python3-pip --online-full
 to check pip2 and pip3 (installed with apt).
 
 From the output of the command we can see that every file belonging to the pip2 and pip3 packages is verified correctly. Same info is provided by the log.
+
 [Output of the command & log](./example_outputs/01.apt_pip_pip3_of.md)
 
-If you use the option `--py-package-managers` make sure to check the integrity of what you specify as well.
+If you use the option `--py-package-managers` make sure to check the integrity of what you specify there as well.
 
 ### complete online system check
 
