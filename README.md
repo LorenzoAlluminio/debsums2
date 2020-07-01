@@ -336,9 +336,9 @@ I'm going to do a small writeup of the problem I encountered and how I tried to 
 4. How to detect those attacks?
     1. use git status to see if there are uncommitted changes
     2. compare commit history of local repo with online repo
-    3.  compare the whole ".git" folder between the local repo and the online repo.
+    3. compare the whole ".git" folder between the local repo and the online repo.
     4. compare the installed files with the online reference
 
 I implemented point 1 and 2, then I moved to implementing point 4.3.
-I encountered some problems while doing so, the first one is that the `.git` directory is different even for the same repo cloned 2 times subsequently. Therefore I thought about comparing only the `.git/objects` subdirectory. This directory contains all the compresse "snapshots" taken by git. The problem now is that sometimes git packs a lot of object into a single .pack file and this causes problem when comparing because you need to check if there are .pack files and if yes unpack them, otherwise you may have 1 repo in which objects are not packed and 1 repo where objects are packed.
-I tried to implement it but sometimes it works and sometimes not, therefore probably there is still something that I'm missing and I feel like I should look more deeper in how the ".git" directory works to be able to implement it in an efficient way.
+I encountered some problems while doing so, the first one is that the `.git` directory is different even for the same repo cloned 2 times subsequently. Therefore I thought about comparing only the `.git/objects` subdirectories. This directory contains all the compressed "snapshots" taken by git. The problem now is that sometimes git packs a lot of object into a single .pack file and this causes issues when comparing, because you need to check if there are .pack files and if yes unpack them, otherwise you may have 1 repo in which objects are not packed and 1 repo where objects are packed.
+I implemented it this way, but it is painfully slow because it takes time clone each repo needed. Moreover I didn't test it a lot and I'm not sure that this will effectively detect any modifications to the git repo. I feel like I should look more deeper in how the ".git" directory works to be able to implement it in an efficient and secure way.
