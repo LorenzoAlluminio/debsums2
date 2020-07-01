@@ -120,7 +120,7 @@ The complete apt check has found 88 files that are not verified online, just loc
 
 The python libraries analysis instead found 141 files that are not found online. Mostly they are some files which are detected by pip, but were installed through apt (such as pip itself) and some metadata (\*-info directories) which in the local system are under the path `*-egg-info*` while online they are under `*-dist-info*`. A possible future improvement could be to verify if this mapping is valid for all libraries and if yes, check the corresponding file.
 
-It found also 20 files for which the verification fails. This is probably because the content of these scripts is changed based on where you install the library, but I'm not 100% sure because I didn't check the problem of each script due to lack of time.
+It found also 20 files for which the verification fails. This is probably because the content of these scripts is changed based on where you install the library, but I'm not 100% sure because I didn't check the problem of each script due to lack of time. Another improvment could be assess why each verification failed and see if it is a problem of the script or of the specific library.
 
 [Output of the command & log](./example_outputs/02.complete_system_check.md)
 
