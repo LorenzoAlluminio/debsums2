@@ -266,7 +266,7 @@ python3 integrity_checker.py --directory=/bin --writedb
 ```bash
 python3 integrity_checker.py --directory=/bin --writedb --online
 ```
-[Output of the command & log](./example_outputs/15.sd_hashdb_on.md)
+[Output of the command & log & hashdb](./example_outputs/15.sd_hashdb_on.md)
 
 ### Update the hashdb
 
