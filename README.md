@@ -321,11 +321,14 @@ The progress on this functionality can be seen on the `git-support` branch. I di
 I'm going to do a small writeup of the problem I encountered and how I tried to solve them, what worked and what not.
 
 1. How to find the git repos?
+
 `find / -name ".git"` does the job.
 2. Check if the repo is up to up to date
+
 `git remote show origin | grep "(local out of date)"` does the job.
 3. In which way a malware could modify a git repo for some malicious purpose?
     3.1 modify a file and leave it uncommitted
+    
     3.2 modify a file and commit it
     3.3 modify the previous commits (the history of the repo) in such a way that the current files result modified (not sure it's feasible)
     3.4 modify the repo, install the library, undo the modification
