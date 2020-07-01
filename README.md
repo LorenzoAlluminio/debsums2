@@ -118,57 +118,66 @@ python3 integrity_checker.py --complete-system-check --online --ignore-pyc
 ```
 The complete apt check has found 88 files that are not verified online, just locally. This is because they are configuration files under /etc, whose checksums are not stored in the deb package metadata. They would be correctly verified if we ran an `online-full` analysis.
 
-The python libraries analysis instead found 141 that are not found online. Mostly they are some files which are detected by pip, but were installed through apt (such as pip itself) and some metadatas (info directories) which I guess are not in the online library.
-It found also 20 files for which the verification fails. why?
+The python libraries analysis instead found 141 files that are not found online. Mostly they are some files which are detected by pip, but were installed through apt (such as pip itself) and some metadata (\*-info directories) which in the local system are under the path `*-egg-info*` while online they are under `*-dist-info*`. A possible future improvement could be to verify if this mapping is valid for all libraries and if yes, check the corresponding file.
+It found also 20 files for which the verification fails. This is probably because the content of these scripts is changed based on where you install the library, but I'm not 100% sure.
 
 [Output of the command & log](./example_outputs/02.complete_system_check.md)
 
 ### complete online full deb packages check
+This command will perform an online-full check of all the deb packages of the system.
+
 ```bash
 python3 integrity_checker.py --all-packages --online-full
 ```
 
-Now that we ran an online-full analysis we can see that all the files are verified correctly (almost)
+Now that we ran an online-full analysis we can see that almost all the files are verified correctly online.
+
 [Output of the command & log](./example_outputs/03.all_packages.md)
 
-This command will perform an online-full check of all the deb packages of the system.
-
 ### complete online python libraries check
+This command will perform an online check of all the python libraries.
+Moreover the `--ignore-pyc` option will ensure that the .pyc file are ignored.
+
 ```bash
 python3 integrity_checker.py --check-all-py --ignore-pyc
 ```
 
+From the output we can see that the result is the same as the complete system check one.
+
 [Output of the command & log](./example_outputs/04.all_py.md)
 
-This command will perform an online check of all the python libraries.
-Moreover the `--ignore-pyc` option will ensure that the .pyc file are ignored.
-
 ### selective online deb packages check
+This command will perform an online check of the files belonging to the packages bash and vim.
+1 or more packages can be specified.
+
 ```bash
 python3 integrity_checker.py --package bash vim --online
 ```
 [Output of the command & log](./example_outputs/05.sel_deb.md)
-This command will perform an online check of the files belonging to the packages bash and vim.
-1 or more packages can be specified.
 
 ### selective online python libraries check
+
+This command will perform an online check of the files belonging to the libraries simplejson and urllib3.
+Moreover the `--ignore-pyc` option will ensure that the .pyc file are.
+
 ```bash
 python3 integrity_checker.py --check-py simplejson urllib3 --ignore-pyc
 ```
 
-only the record file
+We can see the all files are verified correctly except for the file in the `*-info` directories which I mentioned earlier and the RECORD file, which is a file that contains hashes of the other file in the local system. A future improvement could be to use also this file to verify in order to save bandwidth and to be able to verify stuff locally (like the original `debsums` does).
+
 [Output of the command & log](./example_outputs/06.sel_py.md)
-This command will perform an online check of the files belonging to the libraries simplejson and urllib3.
-Moreover the `--ignore-pyc` option will ensure that the .pyc file are.
 
 ### changing the package managers
 
-By default the script uses the command `pip2` and `pip3` to check for the python libraries. If you want to change this behavior you can supply your own list with the option --py-package-managers:
+By default the script uses the command `pip2` and `pip3` to check for the python libraries. If you want to change this behavior you can supply your own list with the option --py-package-managers
 
 ```bash
 python3 integrity_checker.py --check-all-py --py-package-managers pip
 ```
-no ignore pyc
+
+Here we can see a lot of files that were not found online and that's because we didn't ignore the .pyc files.
+
 [Output of the command & log](./example_outputs/07.change_pm.md)
 
 ### Single file check, offline
@@ -176,55 +185,64 @@ no ignore pyc
 ```bash
 python3 integrity_checker.py --file /bin/bash
 ```
-comment
+
+We can see that the package is verified locally, like the original `debsums` does.
+
 [Output of the command & log](./example_outputs/08.sfc_off.md)
 ### Single file check, online
 
 ```bash
 python3 integrity_checker.py --online --file /bin/bash
 ```
+
+Here instead we can see that the file is verified online.
+
 [Output of the command & log](./example_outputs/09.sfc_on.md)
 ### Package check, online
 
 ```bash
 python3 integrity_checker.py --online --package bash
 ```
-[Output of the command & log](./example_outputs/10.pkg_on.md)
 
 There are 66 files found within the package, 4 files do not have a checksum, otherwise clean. As for those 4 files: Debian decided not to generate md5sums for almost all of the configuration files below `/etc` in their packages.
-If you want to verify those files online, you will have to download the full packages (see next example). I suggest running this verification using `--directory=/etc --writedb` after checking and storing everything else.
+If you want to verify those files online, you will have to download the full packages (see next example).
+
+[Output of the command & log](./example_outputs/10.pkg_on.md)
 
 ### Package check, online with full package download
 
 ```bash
 python3 integrity_checker.py --online-full --package bash
 ```
+
+Now all files are verified online.
+
 [Output of the command & log](./example_outputs/11.pkg_on_full.md)
 ### Directory check, online
+
+integrity_checker stays on the device where directory is located, it will not follow mount points.
 
 ```bash
 python3 integrity_checker.py --directory=/bin --online
 ```
-[Output of the command & log](./example_outputs/12.dir_on.md)
 
-integrity_checker stays on the device where directory is located, it will not follow mount points.
+[Output of the command & log](./example_outputs/12.dir_on.md)
 
 ## Usage with the hashdb
 
 ### complete system crawl
 
-```bash
-python3 integrity_checker.py --directory / --online --writedb
-```
-[Output of the command & log](./example_outputs/13.complete_crawl.md)
 This will check your local system without the mount points. It is wise to delete all pyc files first (`find / -name \*.pyc -delete`).
 
 The first run with `--writedb` will create a file `hashdb.json`, storing the md5sums and package information.
 A md5sum is calculated for this file before and after the integrity_checker run, you may store that value somewhere offline.
 
-After the run you will need to analyze the log (`integrity_checker.log`), look for `trustlevel=0` (changed file) and `trustlevel=1` (unknown file).
+```bash
+python3 integrity_checker.py --directory / --online --writedb
+```
+[Output of the command & log & hashdb](./example_outputs/13.complete_crawl.md)
 
-Example entry:
+Example entry of the hashdb:
 ```bash
 {
 "filename": "/bin/bash",
@@ -241,7 +259,7 @@ b/bash/bash_4.2+dfsg-0.1+deb7u3_amd64.deb"
 ```bash
 python3 integrity_checker.py --directory=/bin --writedb
 ```
-[Output of the command & log](./example_outputs/14.sd_hashdb.md)
+[Output of the command & log & hashdb](./example_outputs/14.sd_hashdb.md)
 
 ### Writing single directory to the hashdb, adding online verification
 
@@ -250,34 +268,34 @@ python3 integrity_checker.py --directory=/bin --writedb --online
 ```
 [Output of the command & log](./example_outputs/15.sd_hashdb_on.md)
 
-integrity_checker reads the stored information for this run, all files were checked before. The hashdb contains "md5_online" for each entry after the run, the checksum for `hashdb.json` is updated.
-
 ### Update the hashdb
+
+`--update` finds removed, added and changed files as well as changed uris.
+This command only makes sense on a fully crawled system (`integrity_checker.py --directory=/`), since `--update` compares the dpkg cache to the hashdb.
 
 ```bash
 python3 integrity_checker.py --update --online
 ```
+
+We can see that if we ran update after installing a package, it detects the changes.
+
 [Output of the command & log](./example_outputs/16.update_hashdb.md)
+
 First check `integrity_checker.log` for any irregularity. If you are sure you want the new status stored, run again and write to storage.
 
 ```bash
 python3 integrity_checker.py --update --online --writedb
 ```
 [Output of the command & log](./example_outputs/17.update_hashdb.md)
-`--update` is to be run after `apt-get update`. It finds removed, added and changed files as well as changed uris.
-This command only makes sense on a fully crawled system (`integrity_checker.py --directory=/`), since `--update` does not work on local files, but compares the dpkg cache to the hashdb.
-
 
 ### Verification of md5sums stored in hashdb
+
+This command verifies online all the hashes stored in the hashdb. If the number of mismatched md5sums is not 0, check `integrity_checker.log` for details.
 
 ```bash
 python3 integrity_checker.py --verify-online
 ```
 [Output of the command & log](./example_outputs/18.verify_hashdb.md)
-
-If the number of mismatched md5sums is not null, check `integrity_checker.log` for details.
-
-This command is for everybody with a high paranoia level suspecting a deeply compromized system, therefore the command can and should be run on a different system, you will need to transfer the hashdb. Be aware that the download of all control files takes some time, you can watch the progress with `tail -f integrity_checker.log`.
 
 ## Result codes
 
